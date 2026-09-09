@@ -5,19 +5,25 @@ Pipeline batch em camadas medallion (bronze/silver/gold) sobre a PokeAPI: ingest
 dados. Projeto autossuficiente — roda sozinho, sem depender da Parte 2.
 
 Racional de arquitetura e diagramas: ver [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) e os
-ADRs [0006](../docs/adr/0006-ingestao-async-cache-bronze.md) e
-[0007](../docs/adr/0007-medallion-bronze-silver-gold.md).
+ADRs [0006](../docs/adr/0006-ingestao-async-cache-bronze.md),
+[0007](../docs/adr/0007-medallion-bronze-silver-gold.md) e
+[0015](../docs/adr/0015-spark-local-notebook-portavel.md).
+
+Detalhe de implementação (como/por quê de cada módulo, edge cases, bugs corrigidos,
+estratégia de testes): [`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md).
 
 ## Estrutura
 
 ```
 part1-pokeapi-analytics/
-├── pyproject.toml / requirements.txt
+├── docs/
+│   └── IMPLEMENTATION.md  # registro de implementação (como/por quê por módulo)
+├── pyproject.toml
 ├── src/
-│   ├── ingest.py       # coleta async + cache bronze + retry/backoff
-│   ├── transform.py    # bronze -> silver (4 tabelas) com schema explícito
-│   ├── analysis.py     # gold: as 3 análises
-│   └── quality.py      # checks: schema, not-null, integridade referencial
+│   ├── ingest.py       # coleta async + cache bronze + retry/backoff       [pronto]
+│   ├── transform.py    # bronze -> silver (4 tabelas) com schema explícito [pronto]
+│   ├── quality.py      # checks: not-null, unicidade, integridade ref.     [pronto]
+│   └── analysis.py     # gold: as 3 análises                              [pendente]
 ├── notebook.ipynb       # entregável exigido: extração + tabelas + análises
 ├── tests/
 ├── data/                # bronze cache (gitignore no volumoso)
@@ -38,16 +44,22 @@ part1-pokeapi-analytics/
 2. Abilities exclusivas de multi-tipo.
 3. Top 5 versatilidade.
 
-Detalhe das fórmulas no [BLUEPRINT](../docs-uso-interno/BLUEPRINT_PicPay_ML_Case.md), seção 6.
+Fórmulas e passo a passo de cada análise serão detalhados em
+[`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md) quando `analysis.py` for implementado.
 
 ## Como rodar
 
-> Ainda não implementado — esqueleto do projeto (Fase 0).
-
 ```bash
-docker compose up
+docker build -t picpay-part1 .
+docker run --rm picpay-part1 python -m pytest tests/ -v
 ```
+
+> `docker-compose.yml` (subir o pipeline completo via `docker compose up`) ainda não
+> está atualizado para a implementação atual — cobre a etapa de análises (pendente).
 
 ## Status
 
-Esqueleto — sem lógica implementada ainda.
+Ingestão, transformação e qualidade implementadas e testadas (42/42 testes passando
+no Docker/Linux — ambiente oficial, ver [ADR-0015](../docs/adr/0015-spark-local-notebook-portavel.md)).
+Análises (`analysis.py`) e notebook ainda pendentes. Detalhe completo em
+[`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md).
