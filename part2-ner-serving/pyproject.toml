@@ -1,0 +1,26 @@
+[project]
+name = "part2-ner-serving"
+version = "0.1.0"
+description = "Serviço de NER (spaCy) com provider abstrato, REST + MCP — PicPay ML Case, Parte 2"
+requires-python = ">=3.11"
+dependencies = [
+    # "fastapi",
+    # "uvicorn",
+    # "pydantic",
+    # "spacy",
+    # "fastmcp",
+    # "redis",
+    # "prometheus-client",
+]
+
+[project.optional-dependencies]
+dev = [
+    # "pytest",
+    # "ruff",
+    # "black",
+    # "mypy",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"

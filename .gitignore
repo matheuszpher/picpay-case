@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Dados (bronze cache volumoso, etc.)
+part1-pokeapi-analytics/data/*
+!part1-pokeapi-analytics/data/.gitkeep
+
+# Histórico local de serving
+part2-ner-serving/*.db
+part2-ner-serving/*.sqlite3
+
+# Terraform
+infra/**/.terraform/
+infra/**/*.tfstate
+infra/**/*.tfstate.*
+infra/**/.terraform.lock.hcl
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Documentos internos de planejamento (não fazem parte da entrega pública)
+docs-uso-interno/

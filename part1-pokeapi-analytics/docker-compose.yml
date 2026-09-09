@@ -1,0 +1,6 @@
+# Stub — Fase 0 (esqueleto). Sobe o pipeline batch (PySpark local).
+services:
+  pipeline:
+    build: .
+    volumes:
+      - ./data:/app/data
