@@ -18,8 +18,17 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install lint/test tools
-        run: pip install ruff black pytest
+      - name: Set up Java (PySpark, Parte 1)
+        if: matrix.project == 'part1-pokeapi-analytics'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install project + lint/test tools
+        run: |
+          pip install ruff black
+          pip install -e "./${{ matrix.project }}[dev]"
 
       - name: Lint (ruff)
         run: ruff check ${{ matrix.project }}

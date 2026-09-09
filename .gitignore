@@ -30,5 +30,8 @@ infra/**/.terraform.lock.hcl
 .idea/
 .DS_Store
 
+# Estado local do Claude Code (não é do projeto)
+.claude/
+
 # Documentos internos de planejamento (não fazem parte da entrega pública)
 docs-uso-interno/
