@@ -231,7 +231,11 @@ def test_write_silver_writes_parquet_and_roundtrips(spark, tmp_path):
     assert any(p.suffix == ".parquet" for p in output_dir.iterdir())
 
     read_back = spark.read.parquet(str(output_dir))
-    assert read_back.schema == df.schema
+    # nullable não sobrevive ao round-trip Parquet (o leitor do Spark marca tudo como
+    # nullable=True); comparar nome + tipo é o que de fato importa aqui.
+    assert [(f.name, f.dataType) for f in read_back.schema.fields] == [
+        (f.name, f.dataType) for f in df.schema.fields
+    ]
     assert sorted(row.pokemon_id for row in read_back.collect()) == [1, 4, 7]
 
 
