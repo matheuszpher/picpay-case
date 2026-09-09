@@ -11,7 +11,6 @@ import pytest
 
 from src import ingest
 
-
 # ---------------------------------------------------------------------------
 # extract_id
 # ---------------------------------------------------------------------------
@@ -32,7 +31,9 @@ def test_extract_id_handles_no_trailing_slash():
 
 def test_fetch_index_paginates_until_next_is_null(monkeypatch):
     page1 = {
-        "results": [{"name": "bulbasaur", "url": "https://pokeapi.co/api/v2/pokemon/1/"}],
+        "results": [
+            {"name": "bulbasaur", "url": "https://pokeapi.co/api/v2/pokemon/1/"}
+        ],
         "next": "https://pokeapi.co/api/v2/pokemon?limit=1&offset=1",
     }
     page2 = {
@@ -174,7 +175,9 @@ def test_fetch_detail_writes_cache_atomically_no_tmp_left_behind(tmp_path):
 
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
 
-    asyncio.run(ingest.fetch_detail(client, "https://pokeapi.co/api/v2/pokemon/1/", tmp_path))
+    asyncio.run(
+        ingest.fetch_detail(client, "https://pokeapi.co/api/v2/pokemon/1/", tmp_path)
+    )
 
     assert (tmp_path / "1.json").exists()
     assert not (tmp_path / "1.json.tmp").exists()
@@ -184,7 +187,8 @@ def test_fetch_detail_writes_cache_atomically_no_tmp_left_behind(tmp_path):
 def test_fetch_detail_ignores_leftover_tmp_from_interrupted_write(tmp_path):
     """Simula uma coleta interrompida: só o .tmp existe (escrita parcial), nunca o .json final.
 
-    Deve tratar como cache miss (o .tmp nunca é lido como cache válido) e refazer a busca."""
+    Deve tratar como cache miss (o .tmp nunca é lido como cache válido) e refazer a busca.
+    """
     payload = {"id": 1, "name": "bulbasaur"}
     calls = []
 
@@ -241,7 +245,9 @@ def test_fetch_detail_does_not_retry_on_non_retryable_status(tmp_path, monkeypat
 
     with pytest.raises(httpx.HTTPStatusError):
         asyncio.run(
-            ingest.fetch_detail(client, "https://pokeapi.co/api/v2/pokemon/1/", tmp_path)
+            ingest.fetch_detail(
+                client, "https://pokeapi.co/api/v2/pokemon/1/", tmp_path
+            )
         )
 
     assert call_count["n"] == 1
@@ -260,7 +266,9 @@ def test_fetch_detail_raises_after_exhausting_retries(tmp_path, monkeypatch):
 
     with pytest.raises(httpx.HTTPStatusError):
         asyncio.run(
-            ingest.fetch_detail(client, "https://pokeapi.co/api/v2/pokemon/1/", tmp_path)
+            ingest.fetch_detail(
+                client, "https://pokeapi.co/api/v2/pokemon/1/", tmp_path
+            )
         )
 
     assert call_count["n"] == ingest.MAX_RETRIES + 1
@@ -278,7 +286,9 @@ def test_fetch_all_preserves_order_and_is_idempotent(tmp_path, monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         pokemon_id = ingest.extract_id(str(request.url))
         calls.append(pokemon_id)
-        return httpx.Response(200, json={"id": pokemon_id, "name": f"pokemon-{pokemon_id}"})
+        return httpx.Response(
+            200, json={"id": pokemon_id, "name": f"pokemon-{pokemon_id}"}
+        )
 
     monkeypatch.setattr(httpx, "AsyncClient", _async_client_factory(handler))
 

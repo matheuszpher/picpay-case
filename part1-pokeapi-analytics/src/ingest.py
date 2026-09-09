@@ -27,7 +27,9 @@ def fetch_index(page_size: int = 100, max_items: int | None = None) -> list[dict
     url: str | None = f"{BASE_URL}/pokemon"
     params: dict | None = {"limit": page_size, "offset": 0}
 
-    with httpx.Client(timeout=DEFAULT_TIMEOUT, headers={"User-Agent": USER_AGENT}) as client:
+    with httpx.Client(
+        timeout=DEFAULT_TIMEOUT, headers={"User-Agent": USER_AGENT}
+    ) as client:
         while url is not None:
             payload = _get_with_retry_sync(client, url, params=params)
             results.extend(payload["results"])
@@ -52,13 +54,18 @@ def _get_with_retry_sync(
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as exc:
-            if exc.response.status_code not in RETRYABLE_STATUS_CODES or attempt == max_retries:
+            if (
+                exc.response.status_code not in RETRYABLE_STATUS_CODES
+                or attempt == max_retries
+            ):
                 raise
         except httpx.RequestError:
             if attempt == max_retries:
                 raise
         delay = backoff_base * (2**attempt)
-        logger.warning("retry %s/%s for %s in %.1fs", attempt + 1, max_retries, url, delay)
+        logger.warning(
+            "retry %s/%s for %s in %.1fs", attempt + 1, max_retries, url, delay
+        )
         time.sleep(delay)
 
     raise RuntimeError("unreachable")  # pragma: no cover
@@ -69,7 +76,9 @@ def extract_id(url: str) -> int:
     return int(url.rstrip("/").rsplit("/", 1)[-1])
 
 
-async def fetch_detail(client: httpx.AsyncClient, url: str, cache_dir: str | Path) -> dict:
+async def fetch_detail(
+    client: httpx.AsyncClient, url: str, cache_dir: str | Path
+) -> dict:
     """Detalhe de um pokémon; lê do cache bronze se existir, senão busca e grava (idempotente)."""
     cache_path = Path(cache_dir)
     cache_path.mkdir(parents=True, exist_ok=True)
@@ -97,38 +106,51 @@ async def _get_with_retry(
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as exc:
-            if exc.response.status_code not in RETRYABLE_STATUS_CODES or attempt == max_retries:
+            if (
+                exc.response.status_code not in RETRYABLE_STATUS_CODES
+                or attempt == max_retries
+            ):
                 raise
         except httpx.RequestError:
             if attempt == max_retries:
                 raise
         delay = backoff_base * (2**attempt)
-        logger.warning("retry %s/%s for %s in %.1fs", attempt + 1, max_retries, url, delay)
+        logger.warning(
+            "retry %s/%s for %s in %.1fs", attempt + 1, max_retries, url, delay
+        )
         await asyncio.sleep(delay)
 
     raise RuntimeError("unreachable")  # pragma: no cover
 
 
-def fetch_all(urls: list[str], concurrency: int = 10, cache_dir: str | Path = "data/bronze") -> list[dict]:
+def fetch_all(
+    urls: list[str], concurrency: int = 10, cache_dir: str | Path = "data/bronze"
+) -> list[dict]:
     """Coleta concorrente (semáforo) dos detalhes; ordem preservada, idempotente via cache bronze."""
     return asyncio.run(_fetch_all_async(urls, concurrency, cache_dir))
 
 
-async def _fetch_all_async(urls: list[str], concurrency: int, cache_dir: str | Path) -> list[dict]:
+async def _fetch_all_async(
+    urls: list[str], concurrency: int, cache_dir: str | Path
+) -> list[dict]:
     semaphore = asyncio.Semaphore(concurrency)
 
     async def _bound_fetch(client: httpx.AsyncClient, url: str) -> dict:
         async with semaphore:
             return await fetch_detail(client, url, cache_dir)
 
-    async with httpx.AsyncClient(timeout=DEFAULT_TIMEOUT, headers={"User-Agent": USER_AGENT}) as client:
+    async with httpx.AsyncClient(
+        timeout=DEFAULT_TIMEOUT, headers={"User-Agent": USER_AGENT}
+    ) as client:
         return await asyncio.gather(*(_bound_fetch(client, url) for url in urls))
 
 
 def _main() -> None:
     logging.basicConfig(level=logging.INFO)
     parser = argparse.ArgumentParser(description="Ingestão bronze da PokeAPI")
-    parser.add_argument("--max-items", type=int, default=None, help="limita a coleta (dev)")
+    parser.add_argument(
+        "--max-items", type=int, default=None, help="limita a coleta (dev)"
+    )
     parser.add_argument("--concurrency", type=int, default=10)
     parser.add_argument("--cache-dir", default="data/bronze")
     args = parser.parse_args()
@@ -136,7 +158,9 @@ def _main() -> None:
     index = fetch_index(max_items=args.max_items)
     urls = [entry["url"] for entry in index]
     details = fetch_all(urls, concurrency=args.concurrency, cache_dir=args.cache_dir)
-    logger.info("coletados %d/%d pokémons em %s", len(details), len(urls), args.cache_dir)
+    logger.info(
+        "coletados %d/%d pokémons em %s", len(details), len(urls), args.cache_dir
+    )
 
 
 if __name__ == "__main__":
