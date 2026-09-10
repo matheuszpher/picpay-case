@@ -86,11 +86,22 @@ RAW_DETAIL_SCHEMA = StructType(
 
 
 def _get_spark() -> SparkSession:
-    return (
+    spark = (
         SparkSession.builder.appName("part1-pokeapi-transform")
         .master(os.environ.get("SPARK_MASTER", "local[*]"))
         .getOrCreate()
     )
+    # Default do Spark é 200 shuffle partitions, pensado pra cluster com dado
+    # grande; aqui calibra pro paralelismo real disponível (nº de cores do
+    # executor local), não um número fixo que ficaria errado se o volume do
+    # dataset mudar. AQE (adaptive query execution, ligado por padrão desde o
+    # Spark 3.2) ainda reajusta em runtime a partir daqui.
+    spark.conf.set("spark.sql.adaptive.enabled", "true")
+    spark.conf.set("spark.sql.adaptive.coalescePartitions.enabled", "true")
+    spark.conf.set(
+        "spark.sql.shuffle.partitions", spark.sparkContext.defaultParallelism
+    )
+    return spark
 
 
 def _details_to_df(details: list[dict]) -> DataFrame:

@@ -89,6 +89,21 @@ SAMPLE_DETAILS = [
 
 
 # ---------------------------------------------------------------------------
+# _get_spark: calibração de shuffle.partitions pro paralelismo real disponível
+# ---------------------------------------------------------------------------
+
+
+def test_get_spark_calibrates_shuffle_partitions_to_default_parallelism(spark):
+    result = transform._get_spark()
+
+    assert result is spark  # getOrCreate reaproveita a sessão de teste
+    configured = int(result.conf.get("spark.sql.shuffle.partitions"))
+    assert configured == result.sparkContext.defaultParallelism
+    assert result.conf.get("spark.sql.adaptive.enabled") == "true"
+    assert result.conf.get("spark.sql.adaptive.coalescePartitions.enabled") == "true"
+
+
+# ---------------------------------------------------------------------------
 # build_pokemon
 # ---------------------------------------------------------------------------
 

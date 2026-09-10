@@ -219,6 +219,15 @@ cru), `_get_spark()` (obtém ou cria a `SparkSession`) e `_details_to_df(details
 - **`write_silver`.** `df.write.mode("overwrite").parquet(...)` sobrescreve o
   diretório de destino inteiro a cada chamada, o que torna a etapa reprocessável
   sem acumular dados.
+- **`_get_spark()` calibra `spark.sql.shuffle.partitions` pro paralelismo real,
+  em vez de aceitar o default do Spark.** Depois do `getOrCreate()`, três
+  `spark.conf.set(...)`: liga `spark.sql.adaptive.enabled` e
+  `spark.sql.adaptive.coalescePartitions.enabled` explicitamente (já são
+  `true` por padrão desde o Spark 3.2, mas ficam explícitos no código, não
+  implícitos no comportamento), e define `spark.sql.shuffle.partitions =
+  spark.sparkContext.defaultParallelism` (o número de cores que o
+  `local[*]` enxerga), em vez do default de 200. Não é um número fixo: se o
+  container rodar com mais ou menos cores, o valor calibrado acompanha.
 
 ### Por quê (tradeoffs de implementação)
 
@@ -250,6 +259,28 @@ cru), `_get_spark()` (obtém ou cria a `SparkSession`) e `_details_to_df(details
   nomenclatura que vale a pena checar antes de reusar a função em outro contexto:
   passar `base_path="data/silver"` por engano duplicaria o `"silver"` no caminho
   final.
+- **`spark.sql.shuffle.partitions` calibrado, mas `write_silver` NÃO forçado
+  para 1 arquivo de saída (decisão consciente, não descuido).** Inspecionando
+  `data/silver/` de uma execução real, as 4 tabelas saíram em 16 arquivos
+  Parquet cada, todos com exatamente 197.121 bytes, independente da tabela ter
+  1351 ou 8106 linhas e schemas completamente diferentes. Esse tamanho idêntico
+  é a evidência de que o overhead fixo do Parquet (footer, metadata, dicionário)
+  domina o arquivo, não o dado em si: o clássico "small files problem", causado
+  pelo paralelismo default do `createDataFrame` (número de cores do
+  `local[*]`), não pelo `shuffle.partitions` (que não entra em jogo aqui, já
+  que `explode`/`select` são transformações estreitas, sem shuffle). A correção
+  óbvia seria `.coalesce(1)` antes de escrever. Decisão tomada: **não fazer**,
+  de propósito. Essas 4 tabelas são pequenas hoje (dicionário de dados fixo do
+  case), mas travar a saída num único arquivo assume que vão continuar assim
+  para sempre; se o volume de pokémons ou de campos crescesse, um
+  `coalesce(1)` hardcoded viraria o próximo gargalo a destravar, exigindo
+  reescrever exatamente o código que "resolveu" o problema de hoje. Deixar o
+  paralelismo natural do Spark decidir o número de arquivos é mais robusto a
+  mudança de volume, ao custo de, no volume atual, ter mais arquivos pequenos
+  do que o ideal. É a mesma lógica de "não otimizar prematuramente para o
+  caso de hoje" aplicada ao armazenamento, não só ao código: o oposto do
+  `shuffle.partitions`, que É calibrado, porque ali o default (200) não é
+  "genérico e seguro", é simplesmente errado pro volume, calibrado ou não.
 
 ### Edge cases tratados
 
@@ -309,6 +340,9 @@ squirtle mono-tipo, squirtle também com hidden ability) cobrindo:
   nomes certos de habilidade.
 - **`write_silver`:** grava e lê de volta em round-trip, e confirma que uma
   segunda escrita com dataset menor sobrescreve em vez de acumular.
+- **`_get_spark()`:** confirma que `spark.sql.shuffle.partitions` fica igual a
+  `sparkContext.defaultParallelism` (não um número fixo, não o default de
+  200) e que os dois flags de AQE ficam `"true"` explicitamente.
 
 ### Gotchas de ambiente
 
@@ -841,6 +875,18 @@ rodar nada. `data/`, incluindo o cache bronze gerado, fica fora do git.
 - **`MSYS_NO_PATHCONV=1`** é necessário só para comandos `docker run -v ...`
   digitados manualmente no Git Bash (Windows); ver "Bugs encontrados e
   corrigidos" acima. `docker compose up`/`make up-p1` não precisam disso.
+- **`docker compose up` sozinho não reconstrói a imagem se ela já existe.**
+  Descoberto ao iterar localmente: depois de já ter rodado `docker compose
+  build`/`up` uma vez, mudanças em `notebook.ipynb`, `src/*.py` ou no
+  `Dockerfile` não têm efeito num `docker compose up` seguinte, porque o
+  Compose reaproveita a imagem cacheada em vez de rebuildar. O sintoma é
+  sutil: o comando roda sem erro, imprime respostas e gera o relatório, só
+  que com código/notebook antigos, sem nenhum aviso de que a imagem está
+  desatualizada. Correção: `docker compose up --build` (já é o comando
+  documentado no README) força o rebuild antes de subir. Isso não afeta quem
+  clona o repositório pela primeira vez, já que nesse caso não existe imagem
+  cacheada para reaproveitar; só quem já rodou o projeto antes e mudou algo
+  desde então precisa do `--build`.
 - Mesmas exigências de JDK 8/11/17 das seções anteriores, já que o notebook
   cria a mesma `SparkSession` que os testes e os módulos usam.
 

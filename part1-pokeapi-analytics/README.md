@@ -98,7 +98,7 @@ Pipeline completo (ingest, transform, quality e as 3 análises), a partir desta 
 respostas no terminal:
 
 ```bash
-docker compose up
+docker compose up --build
 ```
 
 A partir da raiz do repositório, o equivalente é `make up-p1` (ou `make analysis-p1`,
