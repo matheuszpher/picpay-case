@@ -50,8 +50,44 @@ Fórmulas, passo a passo e a pegadinha da média em Q1 estão detalhados na
 
 ## Pré-requisitos
 
-Só Docker instalado e rodando. Internet é necessária apenas para uma primeira ingestão
-(sem cache bronze); os testes automatizados não tocam a rede real.
+Só Docker Desktop instalado e rodando, mais internet para uma primeira ingestão (sem
+cache bronze). Não precisa instalar Python, Java ou nenhuma biblioteca na sua máquina.
+
+**Por que Docker é obrigatório aqui, não só recomendado:** este projeto depende de uma
+combinação específica de versões (PySpark 3.5.3, Java 8/11/17, matplotlib, ipykernel,
+papermill) mais uma biblioteca nativa do Hadoop para escrever Parquet. O Dockerfile fixa
+tudo isso numa imagem testada; sem ele, cada máquina precisaria reproduzir manualmente
+esse ambiente exato, e pequenas diferenças de versão já quebraram a execução real
+durante o desenvolvimento (ver `docs/IMPLEMENTATION.md`).
+
+**Se você rodar sem Docker (Jupyter local, célula por célula), isto vai dar problema:**
+
+- **Import falha ou "meio funciona".** Sem `pip install -e ".[dev]"` a partir desta
+  pasta, `from src import ingest, transform, quality, analysis, report` falha. Se você
+  tiver algumas dependências instaladas por acaso e outras não, o notebook roda até a
+  metade e quebra de forma confusa.
+- **Gráficos (`%matplotlib inline`) quebram com `ModuleNotFoundError: No module named
+  'matplotlib'`** se o kernel do Jupyter que você selecionou não for o mesmo ambiente
+  Python onde as dependências do projeto foram instaladas. É comum o Jupyter abrir com
+  o Python global do sistema em vez do venv do projeto.
+- **Criar a `SparkSession` falha ou trava** sem Java 8, 11 ou 17 instalado e
+  `JAVA_HOME` configurado corretamente. PySpark 3.5.3 não suporta Java 21; se o
+  `pip install` da sua máquina puxar uma versão diferente do PySpark (sem o pin do
+  `pyproject.toml`), o problema piora.
+- **Escrever Parquet (`write_silver`) falha no Windows** com
+  `UnsatisfiedLinkError: NativeIO$Windows.access0`, porque a escrita passa pelo
+  `FileOutputCommitter` do Hadoop, que exige um `hadoop.dll` nativo no `PATH`. Esse
+  arquivo não vem com o PySpark nem com o Python; é preciso baixar manualmente a versão
+  certa (Hadoop 3.3.x) de um repositório de terceiros e configurar `HADOOP_HOME`. No
+  Linux (dentro do Docker) esse problema não existe.
+- **Caminhos relativos quebram** se o Jupyter não abrir com o diretório de trabalho em
+  `part1-pokeapi-analytics/` (comum em editores que abrem a partir da raiz do repo). O
+  notebook assume que `data/bronze`, `data/silver` etc. são relativos a esta pasta.
+
+Nenhum desses pontos tem solução automatizada fora do Docker. Se mesmo assim quiser
+rodar localmente, precisa replicar manualmente tudo que o Dockerfile faz: instalar as
+dependências do `pyproject.toml`, instalar Java 8/11/17, registrar o kernel certo do
+Jupyter, e (no Windows) instalar o `hadoop.dll`.
 
 ## Como rodar
 
