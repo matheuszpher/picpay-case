@@ -110,7 +110,7 @@ def build_pokemon(details: list[dict]) -> DataFrame:
 
 
 def build_pokemon_type(details: list[dict]) -> DataFrame:
-    """DF[pokemon_id:int, type_name:str] — explode de `types`, 1 linha por (pokémon, tipo)."""
+    """DF[pokemon_id:int, type_name:str]: explode de `types`, 1 linha por (pokémon, tipo)."""
     df = _details_to_df(details)
     return df.select(
         F.col("id").alias("pokemon_id"), F.explode("types").alias("type_entry")
@@ -121,7 +121,7 @@ def build_pokemon_type(details: list[dict]) -> DataFrame:
 
 
 def build_pokemon_stats(details: list[dict]) -> DataFrame:
-    """DF[pokemon_id:int, stat_name:str, base_stat:int] — explode de `stats`."""
+    """DF[pokemon_id:int, stat_name:str, base_stat:int]: explode de `stats`."""
     df = _details_to_df(details)
     return df.select(
         F.col("id").alias("pokemon_id"), F.explode("stats").alias("stat_entry")
@@ -133,7 +133,7 @@ def build_pokemon_stats(details: list[dict]) -> DataFrame:
 
 
 def build_pokemon_ability(details: list[dict]) -> DataFrame:
-    """DF[pokemon_id:int, ability_name:str, is_hidden:bool] — explode de `abilities`."""
+    """DF[pokemon_id:int, ability_name:str, is_hidden:bool]: explode de `abilities`."""
     df = _details_to_df(details)
     return df.select(
         F.col("id").alias("pokemon_id"), F.explode("abilities").alias("ability_entry")

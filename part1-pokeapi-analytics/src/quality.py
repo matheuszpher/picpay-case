@@ -2,7 +2,7 @@
 
 Fail loud: `run_quality_report` imprime um relatório legível e levanta `DataQualityError`
 se uma invariante crítica for violada (PK nula/duplicada em `pokemon`, ou órfãos em
-`pokemon_type`/`pokemon_stats`/`pokemon_ability`). Não é só log — quebra o pipeline.
+`pokemon_type`/`pokemon_stats`/`pokemon_ability`). Não é só log: quebra o pipeline.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ def check_not_null(df: DataFrame, cols: list[str]) -> dict:
 
 
 def check_unique(df: DataFrame, cols: list[str]) -> dict:
-    """Verifica se `cols` (combinados) formam chave única — zero grupos com contagem > 1."""
+    """Verifica se `cols` (combinados) formam chave única: zero grupos com contagem > 1."""
     duplicate_count = df.groupBy(*cols).count().filter(F.col("count") > 1).count()
     passed = duplicate_count == 0
     return {
@@ -85,7 +85,7 @@ def run_quality_report(dfs: dict[str, DataFrame]) -> None:
 
 def _print_report(checks: list[tuple[dict, bool]]) -> None:
     print("=" * 70)
-    print("RELATÓRIO DE QUALIDADE — silver")
+    print("RELATÓRIO DE QUALIDADE - silver")
     print("=" * 70)
     for result, critical in checks:
         status = "PASS" if result["passed"] else "FAIL"

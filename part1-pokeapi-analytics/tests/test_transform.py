@@ -1,4 +1,4 @@
-"""Testes de src/transform.py — SparkSession local, fixture pequena, nada de rede."""
+"""Testes de src/transform.py: SparkSession local, fixture pequena, nada de rede."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from src import transform
 
 # Escrita de Parquet via Hadoop's FileOutputCommitter chama NativeIO no Windows e exige
 # hadoop.dll (não só winutils.exe) em %HADOOP_HOME%\bin. No Docker/CI (Linux, ADR-0015) isso
-# não é necessário — é só uma limitação do dev-box Windows local.
+# não é necessário; é só uma limitação do dev-box Windows local.
 _hadoop_home = os.environ.get("HADOOP_HOME")
 _has_hadoop_dll = (
     bool(_hadoop_home) and (Path(_hadoop_home) / "bin" / "hadoop.dll").exists()
@@ -27,7 +27,7 @@ _has_hadoop_dll = (
 _SKIP_WRITE_TESTS = sys.platform.startswith("win") and not _has_hadoop_dll
 _SKIP_REASON = (
     "Escrita de Parquet requer hadoop.dll em %HADOOP_HOME%\\bin no Windows local; "
-    "roda normalmente no Docker/CI (Linux) — ver ADR-0015."
+    "roda normalmente no Docker/CI (Linux), ver ADR-0015."
 )
 
 # 3 pokémons: bulbasaur é multi-tipo e tem hidden ability; squirtle também tem hidden ability.

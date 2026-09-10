@@ -1,4 +1,4 @@
-"""Testes de src/quality.py — SparkSession local, fixtures pequenas, nada de rede.
+"""Testes de src/quality.py: SparkSession local, fixtures pequenas, nada de rede.
 
 Cada invariante crítica tem um teste de caso feliz e um de violação, garantindo que
 `run_quality_report` realmente levanta `DataQualityError` (fail loud, não só log).
@@ -175,7 +175,7 @@ def test_check_referential_detects_orphan(spark):
 
 
 # ---------------------------------------------------------------------------
-# run_quality_report — caso feliz
+# run_quality_report - caso feliz
 # ---------------------------------------------------------------------------
 
 
@@ -190,7 +190,7 @@ def test_run_quality_report_happy_path_does_not_raise_and_prints_report(spark, c
 
 
 # ---------------------------------------------------------------------------
-# run_quality_report — cada invariante crítica violada deve levantar
+# run_quality_report - cada invariante critica violada deve levantar
 # ---------------------------------------------------------------------------
 
 

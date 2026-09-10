@@ -1,7 +1,7 @@
 """Gold: as 3 análises sobre o silver (ADR-0007).
 
-Funções puras sobre DataFrames — recebem os DFs do silver já carregados (não leem
-Parquet diretamente) e são determinísticas: mesma entrada, mesma saída.
+Funções puras sobre DataFrames: recebem os DFs do silver já carregados (não leem
+Parquet diretamente) e são determinísticas, mesma entrada, mesma saída.
 """
 
 from __future__ import annotations
@@ -14,7 +14,7 @@ def forca(stats: DataFrame) -> DataFrame:
     """DF[pokemon_id, forca] = soma de TODOS os base_stat por pokémon.
 
     Cacheada: reusada por `q1_multitype_above_avg` e `q3_top5_versatility`. O
-    `.cache()` marca o plano lógico analisado no CacheManager do Spark — chamadas
+    `.cache()` marca o plano lógico analisado no CacheManager do Spark. Chamadas
     independentes de `forca(stats)` a partir de Q1 e Q3 (mesmo `stats` de entrada)
     reaproveitam os dados já materializados, mesmo sendo objetos Python distintos.
     """
@@ -36,7 +36,7 @@ def q1_multitype_above_avg(
     """Quantos pokémons são multi-tipo E têm força acima da média?
 
     PEGADINHA do enunciado: "média geral da força" é a média das FORÇAS por
-    pokémon (uma força por pokémon, `avg(forca)`) — não a média linha-a-linha de
+    pokémon (uma força por pokémon, `avg(forca)`), não a média linha a linha de
     `base_stat` (que teria um valor por combinação pokémon×stat, pesando errado
     pokémons com mais stats registrados).
     """
@@ -61,7 +61,7 @@ def q2_abilities_exclusive_multitype(
     """DF[ability_name] com as abilities que NUNCA aparecem em pokémon de tipo único.
 
     Lógica: todas as abilities distintas MENOS as que aparecem em algum pokémon
-    mono-tipo (`subtract`) — não é "aparece em algum multi-tipo" (isso deixaria
+    mono-tipo (`subtract`). Não é "aparece em algum multi-tipo" (isso deixaria
     passar abilities que também aparecem em mono), é "nunca aparece em mono".
     Como toda ability vem de algum pokémon, o que sobra do `subtract` só pode
     vir de pokémons multi-tipo.
@@ -81,7 +81,7 @@ def q2_abilities_exclusive_multitype(
 def q3_top5_versatility(
     pokemon: DataFrame, types: DataFrame, stats: DataFrame, abilities: DataFrame
 ) -> DataFrame:
-    """DF[pokemon_id, name, versatility_score] — top 5 por versatilidade.
+    """DF[pokemon_id, name, versatility_score]: top 5 por versatilidade.
 
     score = (n_types * 2) + n_abilities + (soma_stats / 100). `n_abilities` conta
     TODAS as abilities distintas por pokémon, incluindo as com `is_hidden=true`.

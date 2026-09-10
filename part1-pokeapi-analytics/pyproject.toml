@@ -20,6 +20,11 @@ dev = [
     # "mypy",
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# Fixtures de teste usam datetimes naive de propósito (comparação determinística de
+# strings/nomes de arquivo, sem fuso horário relevante).
+"tests/test_report.py" = ["DTZ001", "DTZ005"]
+
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"

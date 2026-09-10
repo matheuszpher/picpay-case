@@ -1,4 +1,4 @@
-"""Testes de src/analysis.py — SparkSession local, fixture pequena com respostas
+"""Testes de src/analysis.py: SparkSession local, fixture pequena com respostas
 calculadas NA MÃO (não só "rodou sem erro"). Nada de rede, nada de Parquet.
 
 Fixture: 6 pokémons.
@@ -246,7 +246,7 @@ def test_q3_top5_ranking_and_tiebreak_by_pokemon_id(dfs):
 
 
 def test_q3_excludes_the_tied_pokemon_with_larger_id(dfs):
-    """squirtle(4) e rattata(6) empatam em 3.92 — só squirtle deve entrar no
+    """squirtle(4) e rattata(6) empatam em 3.92. Só squirtle deve entrar no
     top 5, porque o tiebreaker é pokemon_id asc (4 < 6)."""
     pokemon, types, stats, abilities = dfs
 

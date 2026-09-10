@@ -130,10 +130,10 @@ def fetch_all(
     """Coleta concorrente (semáforo) dos detalhes; ordem preservada, idempotente via cache bronze.
 
     Funciona tanto chamada de um script/teste comum (sem event loop rodando) quanto de
-    dentro de um kernel Jupyter/IPython (que já mantém seu próprio event loop — nesse
+    dentro de um kernel Jupyter/IPython, que já mantém seu próprio event loop. Nesse
     caso `asyncio.run()` direto levantaria `RuntimeError: cannot be called from a
     running event loop`; a coleta roda então numa thread separada, com seu próprio
-    loop isolado).
+    loop isolado.
     """
     try:
         asyncio.get_running_loop()
