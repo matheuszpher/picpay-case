@@ -16,6 +16,8 @@ estratégia de testes): [`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md).
 
 ```
 part1-pokeapi-analytics/
+├── assets/
+│   └── picpay-logo.png    # logo usada no relatório gerencial (versionada no git)
 ├── docs/
 │   └── IMPLEMENTATION.md  # registro de implementação (como/por quê por módulo)
 ├── pyproject.toml
@@ -107,10 +109,12 @@ O cache bronze (`data/bronze/`, fora do git) persiste entre execuções. Um segu
 na PokeAPI de novo. O `notebook.ipynb` já está commitado com as saídas de uma execução
 completa, então dá para ver as 3 respostas e os gráficos sem rodar nada.
 
-Cada execução também grava um relatório gerencial em HTML (cores e fonte do PicPay) em
-`data/reports/`: `report-apipokemon-latest.html` (sempre sobrescrito) e
-`report-apipokemon-{DDMMYY}-{HHMMSS}.html` (um por execução, com histórico). Os dados
-que alimentam o relatório ficam em `data/results/latest.json`, sobrescrito a cada run.
+Cada execução também grava um relatório gerencial em HTML (logo, cores e fonte do
+PicPay, mais os 2 gráficos da Seção 5 do notebook, gerados na hora a partir dos dados
+desta execução, nada estático) em `data/reports/`: `report-apipokemon-latest.html`
+(sempre sobrescrito) e `report-apipokemon-{DDMMYY}-{HHMMSS}.html` (um por execução, com
+histórico). Os dados que alimentam o relatório ficam em `data/results/latest.json`,
+sobrescrito a cada run.
 
 Só os testes:
 
@@ -124,7 +128,7 @@ A partir da raiz, `make test-p1`.
 ## Status
 
 Ingestão, transformação, qualidade, análises, relatório gerencial e notebook
-implementados e testados (61/61 testes passando no Docker/Linux, o ambiente oficial,
+implementados e testados (67/67 testes passando no Docker/Linux, o ambiente oficial,
 ver [ADR-0015](../docs/adr/0015-spark-local-notebook-portavel.md)). `docker compose up`
 roda o pipeline completo de ponta a ponta, imprime as 3 respostas e gera o relatório
 HTML: o critério de pronto da Parte 1 está fechado. Detalhe completo em

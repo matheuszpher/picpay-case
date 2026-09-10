@@ -5,6 +5,7 @@ Nada de Spark aqui, o módulo só monta dict/HTML e escreve arquivo.
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 from datetime import datetime
@@ -30,6 +31,7 @@ SAMPLE_RESULTS_KWARGS = {
         },
         {"pokemon_id": 784, "name": "kommo-o", "versatility_score": 13.0},
     ],
+    "forca_values": [94, 122, 91, 92, 85, 92, 700, 68, 310, 455],
 }
 
 
@@ -107,6 +109,65 @@ def test_build_html_report_is_valid_enough_html():
 
     assert html.strip().startswith("<!doctype html>")
     assert "<html" in html and "</html>" in html
+
+
+def test_build_html_report_embeds_logo_and_two_charts_as_base64_png():
+    results = report.build_results(**SAMPLE_RESULTS_KWARGS)
+
+    html = report.build_html_report(results)
+
+    # 1 logo + 2 graficos = 3 imagens embutidas, nenhuma referenciada por caminho externo
+    assert html.count("data:image/png;base64,") == 3
+    assert 'src="http' not in html  # nenhuma imagem carregada de fora
+
+
+# ---------------------------------------------------------------------------
+# build_top5_chart / build_forca_distribution_chart: nada estatico ou chumbado,
+# o grafico tem que refletir os dados recebidos.
+# ---------------------------------------------------------------------------
+
+
+def test_build_top5_chart_returns_base64_png():
+    chart_b64 = report.build_top5_chart(SAMPLE_RESULTS_KWARGS["q3_top5"])
+
+    assert isinstance(chart_b64, str)
+    assert len(chart_b64) > 500  # um PNG de verdade, nao uma string vazia/trivial
+    # cabecalho de um PNG valido, uma vez decodificado
+    assert base64.b64decode(chart_b64)[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_build_top5_chart_changes_when_data_changes():
+    chart_a = report.build_top5_chart(SAMPLE_RESULTS_KWARGS["q3_top5"])
+
+    different_top5 = [
+        {"pokemon_id": 1, "name": "bulbasaur", "versatility_score": 1.0},
+        {"pokemon_id": 2, "name": "ivysaur", "versatility_score": 2.0},
+    ]
+    chart_b = report.build_top5_chart(different_top5)
+
+    assert chart_a != chart_b  # nao e uma imagem chumbada: muda com o dado
+
+
+def test_build_forca_distribution_chart_returns_base64_png():
+    chart_b64 = report.build_forca_distribution_chart(
+        SAMPLE_RESULTS_KWARGS["forca_values"]
+    )
+
+    assert base64.b64decode(chart_b64)[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_build_forca_distribution_chart_changes_when_data_changes():
+    chart_a = report.build_forca_distribution_chart([100, 200, 300, 400, 500])
+    chart_b = report.build_forca_distribution_chart([10, 20, 30, 40, 50, 900, 900])
+
+    assert chart_a != chart_b
+
+
+def test_logo_asset_exists_and_is_a_real_png():
+    assert report.LOGO_PATH.exists()
+
+    header = report.LOGO_PATH.read_bytes()[:8]
+    assert header == b"\x89PNG\r\n\x1a\n"
 
 
 # ---------------------------------------------------------------------------

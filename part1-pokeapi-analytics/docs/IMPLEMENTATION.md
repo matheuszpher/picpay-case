@@ -673,10 +673,10 @@ da Parte 1: a camada de orquestração, narrativa e apresentação. Importa e ch
 em sequência, as funções já implementadas e testadas em `src/`. Não reimplementa
 nenhuma lógica de ingestão, transformação, qualidade ou análise.
 
-Fluxo das 20 células (10 de código, 10 de markdown intercaladas):
+Fluxo das 22 células (11 de código, 11 de markdown intercaladas):
 
-1. Setup: `sys.path`, imports de `src.ingest`, `src.transform`, `src.quality` e
-   `src.analysis`, criação da `SparkSession` (`local[*]`).
+1. Setup: `sys.path`, imports de `src.ingest`, `src.transform`, `src.quality`,
+   `src.analysis` e `src.report`, criação da `SparkSession` (`local[*]`).
 2. Ingestão: `ingest.fetch_index()` mais `ingest.fetch_all(...)` com o cache
    bronze.
 3. Transformação: as 4 `build_*` de `transform.py` e `write_silver` de cada
@@ -688,17 +688,23 @@ Fluxo das 20 células (10 de código, 10 de markdown intercaladas):
    Q1 e Q2, a pegadinha explicada em prosa, seguida de `print()`s claros da
    resposta.
 6. Visualização: bar chart do top 5 (Q3) e histograma da distribuição de força
-   com a linha da média (Q1, reforçando a pegadinha visualmente).
-7. Conclusão: link para este documento.
+   com a linha da média (Q1, reforçando a pegadinha visualmente), via
+   `report.build_top5_chart`/`report.build_forca_distribution_chart` (Seção 6),
+   exibidos com `IPython.display.Image`.
+7. Relatório gerencial: persiste os resultados e gera o HTML com logo, cores
+   e os mesmos dois gráficos (Seção 6).
+8. Conclusão: link para este documento.
 
 ### Como foi implementado
 
 - **PySpark vanilla.** Nenhuma célula usa `display()`, `dbutils`, sessão
   pré-provida ou Delta: só `SparkSession.builder...getOrCreate()` explícito e
-  `print()`/`.show()` para saída. A única "mágica" usada é `%matplotlib inline`,
-  uma IPython/Jupyter magic padrão, não exclusiva de Databricks (funciona igual
-  em Jupyter local, Colab e Databricks), necessária para o gráfico aparecer como
-  imagem embutida na saída da célula.
+  `print()`/`.show()` para saída. Os gráficos (Seção 5) não usam nenhuma magic
+  do IPython (nem `%matplotlib inline`): são gerados por
+  `report.build_top5_chart`/`report.build_forca_distribution_chart` (Seção 6),
+  que devolvem PNG em base64, exibido via
+  `IPython.display.Image`/`display()` (funções padrão do `IPython.display`,
+  disponíveis em qualquer kernel Jupyter, Colab ou Databricks).
 - **Execução e prova via `papermill`, não `nbconvert`.** O notebook é executado
   de ponta a ponta via `papermill notebook.ipynb notebook.ipynb --log-output`, o
   mesmo arquivo de entrada e saída, rodando in place. A flag `--log-output` faz
@@ -733,14 +739,11 @@ Fluxo das 20 células (10 de código, 10 de markdown intercaladas):
   produção.** Os dois usam o mesmo motor de execução por baixo (`nbclient`, via
   um kernel Jupyter real), mas só o papermill tem a flag de log ao vivo que o
   critério de pronto exige: imprimir as 3 respostas no terminal de quem roda
-  `docker compose up`. Rodar o notebook convertido para script Python puro
-  (`jupyter nbconvert --to script`) foi cogitado e descartado, porque a célula
-  com `%matplotlib inline` vira, no script gerado, uma chamada
-  `get_ipython().run_line_magic(...)` que quebra fora de um kernel real
-  (`get_ipython()` não existe em Python puro). A conversão para script não é
-  livre, exigiria reescrever a célula do gráfico. Manter a execução sempre pelo
-  caminho do kernel real, via papermill, evita essa bifurcação de código entre
-  modo notebook e modo script.
+  `docker compose up`. `jupyter nbconvert --to script` converteria as células
+  de código para um `.py` executável direto, mas perderia o texto das células
+  markdown (a narrativa) e não teria vantagem sobre o papermill nesse ponto,
+  já que os gráficos hoje não dependem de nenhuma magic do IPython (Seção 5)
+  para funcionar dentro de um kernel real.
 - **Dataset completo por padrão, não uma amostra.** O objetivo do notebook é
   responder as 3 perguntas de verdade. Uma amostra por padrão obrigaria o
   avaliador a lembrar de trocar `MAX_ITEMS` antes de confiar nos números; o
@@ -859,36 +862,52 @@ arquitetura.
 ### O que faz e onde
 
 Persiste as respostas de cada execução do notebook e gera um relatório
-gerencial em HTML, com a identidade visual do PicPay. É lógica de
+gerencial em HTML, com a logo, as cores e a fonte do PicPay, incluindo dois
+gráficos montados na hora a partir dos dados recebidos. É lógica de
 apresentação, mas segue a mesma régua do resto do projeto: vive em `src/`,
-testada isoladamente, e o notebook só chama.
+testada isoladamente, e o notebook só chama (inclusive para os próprios
+gráficos que aparecem na Seção 5 do notebook: são a mesma função, chamada
+duas vezes, uma para o notebook e outra para o HTML).
 
 | Função | Assinatura | Responsabilidade |
 |---|---|---|
-| `build_results` | `(*, generated_at, ingest_seconds, dataset_counts, q1_resultado, q2_abilities, q3_top5) -> dict` | Monta o dict de resultados de uma execução |
+| `build_results` | `(*, generated_at, ingest_seconds, dataset_counts, q1_resultado, q2_abilities, q3_top5, forca_values) -> dict` | Monta o dict de resultados de uma execução |
 | `save_results_json` | `(results, path="data/results/latest.json") -> Path` | Grava os resultados em JSON, sobrescrevendo a cada execução |
-| `build_html_report` | `(results) -> str` | Monta o HTML do relatório gerencial |
+| `build_top5_chart` | `(top5: list[dict]) -> str` | Bar chart do top 5 de versatilidade, PNG em base64 |
+| `build_forca_distribution_chart` | `(forca_values: list[float]) -> str` | Histograma da força com linha da média, PNG em base64 |
+| `build_html_report` | `(results) -> str` | Monta o HTML do relatório gerencial, com logo e os dois gráficos embutidos |
 | `save_html_report` | `(html, generated_at, reports_dir="data/reports") -> tuple[Path, Path]` | Salva o HTML em dois arquivos: `latest` e um com timestamp |
 
-Constantes públicas: `PICPAY_GREEN`, `PICPAY_DARK`, `PICPAY_FONT` (paleta e
-tipografia usadas no relatório).
+Constantes públicas: `PICPAY_GREEN`, `PICPAY_GREEN_LIGHT`, `PICPAY_DARK`,
+`PICPAY_FONT` (paleta e tipografia) e `LOGO_PATH` (caminho do arquivo da
+logo, resolvido a partir de `__file__`, não do diretório de trabalho).
 
 ### Como foi implementado
 
 - **`build_results`** recebe só argumentos nomeados (todos `*` keyword-only)
-  com os números já calculados pelo notebook (contagens do silver, resultado
-  de Q1, lista de abilities de Q2, lista de dicts do top 5 de Q3). Não recalcula
-  nada, só empacota.
-- **`save_results_json`** grava com `mode` de escrita normal (não atômica,
-  ao contrário do cache bronze do ingest): o arquivo é pequeno, de uso
-  interno, e o pior cenário de uma escrita truncada é rodar de novo, não uma
-  corrupção de dado crítico de produção.
+  com os números e listas já calculados pelo notebook (contagens do silver,
+  resultado de Q1, lista de abilities de Q2, lista de dicts do top 5 de Q3, e
+  agora também a lista completa de forças por pokémon, usada pelo histograma).
+  Não recalcula nada, só empacota.
+- **A logo** foi fornecida pelo usuário (`.webp`, convertida uma única vez
+  para `assets/picpay-logo.png` com fundo transparente) e vive em
+  `part1-pokeapi-analytics/assets/`, versionada no git como um asset normal
+  do projeto (não é cache de dado, não fica em `data/`). `PICPAY_GREEN` foi
+  recalibrado para `#00C356`, a cor dominante amostrada diretamente dos
+  pixels da logo (a estimativa anterior, `#21C25E`, era uma aproximação sem
+  a logo em mãos).
+- **`build_top5_chart`/`build_forca_distribution_chart`** usam
+  `matplotlib.figure.Figure` diretamente (não `matplotlib.pyplot`) e
+  renderizam via `fig.savefig(buf, format="png")` num `io.BytesIO`, retornando
+  o PNG em base64. Nenhuma das duas toca no backend global do matplotlib nem
+  em `plt.show()`/`%matplotlib inline`: por isso o notebook pôde parar de usar
+  a magic do IPython (ver Seção 5) sem perder nada.
 - **`build_html_report`** monta uma string HTML única via f-string, com CSS
   inline num `<style>` no `<head>`. Usa a fonte Poppins carregada via Google
-  Fonts (link no `<head>`) com fallback para fontes de sistema
-  (`'Segoe UI', Arial, sans-serif`), e o verde de marca do PicPay
-  (`PICPAY_GREEN = "#21C25E"`) no cabeçalho, nos números em destaque e nos
-  separadores de seção.
+  Fonts (link no `<head>`) com fallback para fontes de sistema, o verde de
+  marca no cabeçalho e nos números em destaque, a logo embutida como
+  `<img src="data:image/png;base64,...">`, e os dois gráficos (também
+  base64) dentro das seções de Q1 e Q3.
 - **`save_html_report`** escreve o mesmo conteúdo HTML em dois arquivos: um
   de nome fixo (`report-apipokemon-latest.html`) e um com o padrão de nome
   pedido, `report-apipokemon-{DDMMYY}-{HHMMSS}.html` (por exemplo
@@ -896,6 +915,27 @@ tipografia usadas no relatório).
 
 ### Por quê (tradeoffs de implementação)
 
+- **`Figure`/`Agg` em vez de `pyplot` para os gráficos do relatório.** O
+  notebook já usava `matplotlib.pyplot` com `%matplotlib inline` pra exibir
+  gráficos inline (Seção 5, versão anterior). Gerar os gráficos do relatório
+  com esse mesmo `pyplot` global criaria uma dependência de qual backend
+  está ativo no processo no momento da chamada (frágil: o resultado mudaria
+  dependendo se `build_html_report` roda antes ou depois de alguma célula
+  configurar o backend). Usar `Figure` diretamente, sem tocar em nenhum
+  estado global do matplotlib, elimina essa dependência de ordem de
+  execução; a função funciona igual dentro de um notebook Jupyter, num
+  script batch ou dentro de um teste do pytest.
+- **Notebook reaproveita `build_top5_chart`/`build_forca_distribution_chart`
+  em vez de ter seu próprio código de plot.** Antes da logo/gráficos do
+  relatório, o notebook desenhava os dois gráficos com `matplotlib.pyplot`
+  direto na célula, em azul/vermelho, cores que não tinham relação com o
+  relatório em HTML. Manter os dois códigos seria: (1) duplicação da mesma
+  lógica de plot em dois lugares, indo contra a régua do projeto; e (2) uma
+  inconsistência visual real, o notebook mostrando um gráfico e o relatório
+  mostrando outro, de cores diferentes, para o mesmo dado. Trocar o notebook
+  para chamar as mesmas funções de `report.py` resolve as duas coisas de
+  uma vez: zero duplicação e os dois lugares mostram exatamente a mesma
+  imagem.
 - **Dois arquivos de saída para o mesmo HTML, não um só.** O pedido original
   tinha duas exigências que, à letra, se contradizem: "overwrite no que já
   existe" e, ao mesmo tempo, um nome de arquivo com data e hora (que por
@@ -905,23 +945,22 @@ tipografia usadas no relatório).
   formas, uma fixa para abrir "o mais recente" sem precisar procurar o nome, e
   uma com timestamp para preservar o histórico de execuções (o que também é
   útil num relatório gerencial: comparar a execução de hoje com a de ontem).
-  Se a intenção era só o arquivo com timestamp, sem o `latest.html`, é uma
-  troca de uma linha em `save_html_report`.
 - **JSON separado do HTML, em vez de o HTML ser a única persistência.** O
   `data/results/latest.json` existe porque o relatório em si (apresentação)
   não é um bom formato para reconsumo por outro processo (parsing de HTML
-  para extrair números é frágil). O JSON é o dado; o HTML é a leitura humana
-  dele.
+  para extrair números é frágil, e ainda mais frágil com gráficos embutidos
+  em base64 no meio). O JSON é o dado; o HTML é a leitura humana dele.
 - **Sem `try/except` na célula do notebook que chama `report.*`.** Se algo
-  falhar na geração do relatório (por exemplo, permissão de escrita), é
-  melhor a exceção propagar e o notebook terminar com erro visível do que
-  mascarar uma falha de persistência com um `except: pass` silencioso.
-- **Cores aproximadas da marca, não extraídas de um design system oficial.**
-  Não há acesso a um guia de marca interno do PicPay neste projeto; o verde
-  usado (`#21C25E`) é a aproximação mais próxima da identidade visual pública
-  da empresa. Se houver um token de cor oficial disponível depois, é só trocar
-  a constante `PICPAY_GREEN` em `report.py`; nenhum outro código depende do
-  valor exato.
+  falhar na geração do relatório (por exemplo, permissão de escrita, ou o
+  arquivo da logo não existir), é melhor a exceção propagar e o notebook
+  terminar com erro visível do que mascarar uma falha de persistência com um
+  `except: pass` silencioso.
+- **Logo fornecida pelo usuário, não baixada de um kit de imprensa por
+  conta própria.** Logos são ativos de marca registrada; usar o arquivo que
+  o próprio usuário forneceu (dono do case, aplicando pra vaga no PicPay)
+  evita depender de uma URL externa não verificada e mantém o relatório
+  autocontido (a logo vira base64 dentro do HTML, não uma referência a um
+  arquivo remoto).
 
 ### Edge cases tratados
 
@@ -939,17 +978,29 @@ tipografia usadas no relatório).
   vezes no mesmo segundo (só em teste, não no fluxo real) geraria uma
   colisão e uma sobrescreveria a outra; não tratado, porque não acontece no
   uso real do notebook.
+- **`LOGO_PATH` resolvido a partir de `__file__`, não do diretório de
+  trabalho.** Se resolvesse a partir de um caminho relativo tipo
+  `"assets/picpay-logo.png"`, quebraria caso alguém chamasse `report.*` de
+  um `cwd` diferente da raiz de `part1-pokeapi-analytics/`. Resolver a
+  partir de `Path(__file__).resolve().parent.parent` torna a localização do
+  asset independente de onde o processo foi iniciado.
+- **Gráficos com lista vazia não quebram.** `build_forca_distribution_chart`
+  só desenha a linha da média e a legenda se `forca_values` não estiver
+  vazio; com dataset vazio (não acontece no uso real, mas é o tipo de
+  entrada que um teste pode passar), a função ainda devolve um PNG válido,
+  só que sem histograma.
 
 ### Bugs encontrados e corrigidos
 
 Nenhum bug de implementação neste módulo. Foi construído depois de já ter os
-outros 4 módulos validados; a única coisa nova (escrita de arquivo simples,
-sem Spark) não tem as armadilhas de ambiente dos módulos anteriores.
+outros 4 módulos validados; a única coisa nova (escrita de arquivo simples e
+geração de imagem via matplotlib, sem Spark) não tem as armadilhas de
+ambiente dos módulos anteriores.
 
 ### Estratégia de testes
 
 `tests/test_report.py` não usa Spark (o módulo não depende de `SparkSession`),
-só monta dicts e escreve arquivo em `tmp_path`:
+só monta dicts, gera imagem e escreve arquivo em `tmp_path`:
 
 - **`build_results`:** confirma o formato do dict de saída, incluindo que
   `q2_abilities_exclusive_multitype.count` é derivado de `len(q2_abilities)`,
@@ -957,10 +1008,23 @@ só monta dicts e escreve arquivo em `tmp_path`:
 - **`save_results_json`:** grava e lê de volta; e um teste dedicado confirma
   que uma segunda chamada com dados diferentes sobrescreve o arquivo por
   completo (não sobra número da execução anterior).
+- **`build_top5_chart`/`build_forca_distribution_chart`:** confirmam que o
+  retorno, decodificado de base64, começa com a assinatura binária real de
+  um PNG (`\x89PNG\r\n\x1a\n`); e, crucial pro requisito de "nada estático ou
+  chumbado", um teste dedicado para cada função gera o gráfico duas vezes
+  com dados diferentes e afirma que os dois PNGs resultantes são diferentes
+  (`chart_a != chart_b`), o que trava que os gráficos realmente refletem o
+  dado de entrada, não uma imagem fixa reaproveitada.
 - **`build_html_report`:** confirma que os números-chave (resultado de Q1,
   nomes do top 5 de Q3) aparecem no HTML gerado, que a cor de marca
-  (`PICPAY_GREEN`) e a fonte (`Poppins`) estão presentes, e que o documento
-  começa com `<!doctype html>` e tem `<html>`/`</html>` balanceados.
+  (`PICPAY_GREEN`) e a fonte (`Poppins`) estão presentes, que o documento
+  começa com `<!doctype html>` e tem `<html>`/`</html>` balanceados, e que
+  há exatamente 3 imagens embutidas em base64 (1 logo + 2 gráficos), nenhuma
+  carregada de uma URL externa.
+- **`test_logo_asset_exists_and_is_a_real_png`:** confirma que o arquivo em
+  `LOGO_PATH` existe e começa com a assinatura binária de PNG, pegando o caso
+  de alguém commitar um arquivo corrompido ou renomear o asset sem atualizar
+  o caminho.
 - **`save_html_report`:** confirma os dois arquivos gerados (nome fixo e
   nome com timestamp), que o nome com timestamp bate no formato
   `report-apipokemon-DDMMYY-HHMMSS.html` via regex, e, com duas chamadas
@@ -971,7 +1035,8 @@ só monta dicts e escreve arquivo em `tmp_path`:
 ### Gotchas de ambiente
 
 Nenhum. Não depende de Spark, Java ou rede; roda igual em qualquer ambiente
-com Python 3.11.
+com Python 3.11 e as dependências do `pyproject.toml` instaladas (a única
+nova é `matplotlib`, já listada desde a Seção 5).
 
 ### ADRs relacionados
 

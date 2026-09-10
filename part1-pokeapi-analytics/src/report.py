@@ -1,19 +1,28 @@
 """Persistência dos resultados do notebook e geração do relatório gerencial em HTML.
 
 Vive em src/, não no notebook: a mesma régua do resto do projeto, lógica testável
-fica em src/ e o notebook só chama. As cores e a fonte do HTML seguem a identidade
-visual pública do PicPay (verde de marca, tipografia sans-serif).
+fica em src/ e o notebook só chama. As cores, a fonte e a logo do HTML seguem a
+identidade visual do PicPay. Os gráficos são gerados em tempo real a partir dos
+dados de `results`, nunca chumbados: mudou o dado, muda a imagem.
 """
 
 from __future__ import annotations
 
+import base64
+import io
 import json
 from datetime import datetime
 from pathlib import Path
 
-PICPAY_GREEN = "#21C25E"
+from matplotlib.figure import Figure
+
+PICPAY_GREEN = "#00C356"
+PICPAY_GREEN_LIGHT = "#8FE6B4"
 PICPAY_DARK = "#0B3D2E"
 PICPAY_FONT = "'Poppins', 'Segoe UI', Arial, sans-serif"
+
+ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
+LOGO_PATH = ASSETS_DIR / "picpay-logo.png"
 
 
 def build_results(
@@ -24,6 +33,7 @@ def build_results(
     q1_resultado: int,
     q2_abilities: list[str],
     q3_top5: list[dict],
+    forca_values: list[float],
 ) -> dict:
     """Monta o dict de resultados persistido a cada execução do notebook."""
     return {
@@ -36,6 +46,7 @@ def build_results(
             "abilities": q2_abilities,
         },
         "q3_top5_versatility": q3_top5,
+        "forca_values": forca_values,
     }
 
 
@@ -51,8 +62,100 @@ def save_results_json(
     return output_path
 
 
+# ---------------------------------------------------------------------------
+# imagens embutidas (logo + gráficos): tudo em base64, nada referenciado por
+# caminho externo, pra o HTML ser um arquivo único e autocontido.
+# ---------------------------------------------------------------------------
+
+
+def _encode_file_base64(path: Path) -> str:
+    return base64.b64encode(path.read_bytes()).decode("ascii")
+
+
+def _fig_to_base64_png(fig: Figure) -> str:
+    """Renderiza uma Figure do matplotlib pra PNG em base64, sem tocar em estado
+    global do pyplot (usa a Figure/Canvas diretamente: seguro chamar de dentro
+    de um kernel Jupyter que já tem seu próprio backend configurado)."""
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", dpi=150, bbox_inches="tight", transparent=False)
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+def _style_axes(ax) -> None:
+    ax.set_facecolor("#FFFFFF")
+    for spine in ("top", "right"):
+        ax.spines[spine].set_visible(False)
+    for spine in ("left", "bottom"):
+        ax.spines[spine].set_color("#D7DEDA")
+    ax.tick_params(colors=PICPAY_DARK, labelsize=9)
+    ax.title.set_color(PICPAY_DARK)
+    ax.xaxis.label.set_color(PICPAY_DARK)
+    ax.yaxis.label.set_color(PICPAY_DARK)
+
+
+def build_top5_chart(top5: list[dict]) -> str:
+    """Bar chart do top 5 de versatilidade, gerado a partir de `top5` (não
+    chumbado): nomes e scores vêm direto dos dados recebidos."""
+    names = [row["name"] for row in top5]
+    scores = [row["versatility_score"] for row in top5]
+
+    fig = Figure(figsize=(7, 4))
+    ax = fig.subplots()
+    bars = ax.bar(names, scores, color=PICPAY_GREEN, width=0.6)
+    ax.set_title("Top 5 versatilidade", fontsize=13, fontweight="bold")
+    ax.set_ylabel("versatility_score")
+    _style_axes(ax)
+    if scores:
+        ax.set_ylim(0, max(scores) * 1.15)
+        for bar, score in zip(bars, scores):
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + max(scores) * 0.02,
+                f"{score:.2f}",
+                ha="center",
+                fontsize=9,
+                color=PICPAY_DARK,
+            )
+    fig.tight_layout()
+    return _fig_to_base64_png(fig)
+
+
+def build_forca_distribution_chart(forca_values: list[float]) -> str:
+    """Histograma da força por pokémon com a linha da média, gerado a partir
+    de `forca_values` (não chumbado): reforça a pegadinha de Q1 com os dados
+    reais desta execução."""
+    fig = Figure(figsize=(7, 4))
+    ax = fig.subplots()
+
+    if forca_values:
+        media = sum(forca_values) / len(forca_values)
+        ax.hist(
+            forca_values,
+            bins=30,
+            color=PICPAY_GREEN_LIGHT,
+            edgecolor=PICPAY_GREEN,
+            linewidth=0.8,
+        )
+        ax.axvline(
+            media,
+            color=PICPAY_DARK,
+            linestyle="--",
+            linewidth=1.5,
+            label=f"média = {media:.1f}",
+        )
+        ax.legend(frameon=False, labelcolor=PICPAY_DARK, fontsize=9)
+
+    ax.set_title("Distribuição da força por pokémon", fontsize=13, fontweight="bold")
+    ax.set_xlabel("força (soma dos base_stat)")
+    ax.set_ylabel("nº de pokémons")
+    _style_axes(ax)
+    fig.tight_layout()
+    return _fig_to_base64_png(fig)
+
+
 def build_html_report(results: dict) -> str:
-    """Monta o relatório gerencial em HTML, com cores e fonte do PicPay."""
+    """Monta o relatório gerencial em HTML: cores, fonte e logo do PicPay, com
+    os gráficos gerados na hora a partir dos dados de `results`."""
     counts = results["dataset_counts"]
     q2 = results["q2_abilities_exclusive_multitype"]
 
@@ -61,6 +164,10 @@ def build_html_report(results: dict) -> str:
         f"<td>{row['versatility_score']:.2f}</td></tr>"
         for i, row in enumerate(results["q3_top5_versatility"], start=1)
     )
+
+    logo_b64 = _encode_file_base64(LOGO_PATH)
+    top5_chart_b64 = build_top5_chart(results["q3_top5_versatility"])
+    forca_chart_b64 = build_forca_distribution_chart(results["forca_values"])
 
     return f"""<!doctype html>
 <html lang="pt-BR">
@@ -71,9 +178,12 @@ def build_html_report(results: dict) -> str:
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   body {{ font-family: {PICPAY_FONT}; margin: 0; background: #F5F7F6; color: {PICPAY_DARK}; }}
-  header {{ background: {PICPAY_GREEN}; color: #fff; padding: 32px 40px; }}
-  header h1 {{ margin: 0; font-weight: 700; font-size: 28px; }}
-  header p {{ margin: 4px 0 0; opacity: .9; }}
+  header {{ background: #fff; padding: 24px 40px; border-bottom: 4px solid {PICPAY_GREEN};
+            display: flex; align-items: center; gap: 20px; }}
+  header img {{ height: 36px; }}
+  header .title {{ border-left: 1px solid #D7DEDA; padding-left: 20px; }}
+  header h1 {{ margin: 0; font-weight: 700; font-size: 20px; color: {PICPAY_DARK}; }}
+  header p {{ margin: 2px 0 0; color: #5b6b64; font-size: 13px; }}
   main {{ padding: 32px 40px; max-width: 900px; margin: 0 auto; }}
   .cards {{ display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 32px; }}
   .card {{ background: #fff; border-radius: 12px; padding: 20px 24px;
@@ -84,6 +194,7 @@ def build_html_report(results: dict) -> str:
              box-shadow: 0 1px 4px rgba(0,0,0,.08); }}
   section h2 {{ margin-top: 0; font-size: 18px; color: {PICPAY_DARK};
                border-bottom: 2px solid {PICPAY_GREEN}; padding-bottom: 8px; }}
+  section img {{ max-width: 100%; height: auto; display: block; margin: 12px auto 0; }}
   table {{ width: 100%; border-collapse: collapse; margin-top: 12px; }}
   th, td {{ text-align: left; padding: 8px 12px; border-bottom: 1px solid #E5E9E7; font-size: 14px; }}
   th {{ color: #5b6b64; font-weight: 600; }}
@@ -92,8 +203,11 @@ def build_html_report(results: dict) -> str:
 </head>
 <body>
 <header>
-  <h1>PicPay ML Case: PokeAPI Analytics</h1>
-  <p>Relatorio gerencial gerado em {results["generated_at"]}</p>
+  <img src="data:image/png;base64,{logo_b64}" alt="PicPay">
+  <div class="title">
+    <h1>PicPay ML Case: PokeAPI Analytics</h1>
+    <p>Relatorio gerencial gerado em {results["generated_at"]}</p>
+  </div>
 </header>
 <main>
   <div class="cards">
@@ -107,6 +221,7 @@ def build_html_report(results: dict) -> str:
     <h2>Q1. Multi-tipo e forca acima da media</h2>
     <p><strong>{results["q1_multitype_above_avg"]}</strong> pokemons sao multi-tipo e tem forca
     acima da media (media das forcas por pokemon, nao media linha a linha de base_stat).</p>
+    <img src="data:image/png;base64,{forca_chart_b64}" alt="Distribuicao da forca por pokemon">
   </section>
 
   <section>
@@ -116,6 +231,7 @@ def build_html_report(results: dict) -> str:
 
   <section>
     <h2>Q3. Top 5 versatilidade</h2>
+    <img src="data:image/png;base64,{top5_chart_b64}" alt="Top 5 versatilidade">
     <table>
       <thead><tr><th>#</th><th>Pokemon</th><th>ID</th><th>Score</th></tr></thead>
       <tbody>{top5_rows}</tbody>
