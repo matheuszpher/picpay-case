@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import concurrent.futures
 import json
 import logging
 import time
@@ -126,8 +127,24 @@ async def _get_with_retry(
 def fetch_all(
     urls: list[str], concurrency: int = 10, cache_dir: str | Path = "data/bronze"
 ) -> list[dict]:
-    """Coleta concorrente (semáforo) dos detalhes; ordem preservada, idempotente via cache bronze."""
-    return asyncio.run(_fetch_all_async(urls, concurrency, cache_dir))
+    """Coleta concorrente (semáforo) dos detalhes; ordem preservada, idempotente via cache bronze.
+
+    Funciona tanto chamada de um script/teste comum (sem event loop rodando) quanto de
+    dentro de um kernel Jupyter/IPython (que já mantém seu próprio event loop — nesse
+    caso `asyncio.run()` direto levantaria `RuntimeError: cannot be called from a
+    running event loop`; a coleta roda então numa thread separada, com seu próprio
+    loop isolado).
+    """
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(_fetch_all_async(urls, concurrency, cache_dir))
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(
+            asyncio.run, _fetch_all_async(urls, concurrency, cache_dir)
+        )
+        return future.result()
 
 
 async def _fetch_all_async(

@@ -1,6 +1,10 @@
-# Stub — Fase 0 (esqueleto). Sobe o pipeline batch (PySpark local).
+# Sobe o pipeline completo da Parte 1 (ingest -> transform -> quality -> analysis)
+# executando o notebook.ipynb via papermill e imprimindo as 3 respostas no terminal
+# (--log-output). O cache bronze (./data) persiste no host entre execuções: reruns
+# ficam rápidos porque a ingestão não bate na PokeAPI de novo.
 services:
   pipeline:
     build: .
     volumes:
       - ./data:/app/data
+    command: ["papermill", "notebook.ipynb", "notebook.ipynb", "--log-output"]

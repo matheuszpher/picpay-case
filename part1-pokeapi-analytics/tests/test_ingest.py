@@ -344,6 +344,30 @@ def test_fetch_all_sends_user_agent(tmp_path, monkeypatch):
     assert captured_headers.get("user-agent") == ingest.USER_AGENT
 
 
+def test_fetch_all_works_when_called_from_a_running_event_loop(tmp_path, monkeypatch):
+    """Regressão: dentro de um kernel Jupyter/IPython já existe um event loop rodando,
+    e `fetch_all` (síncrona) precisa continuar funcionando quando chamada de lá — sem
+    isso, um `asyncio.run()` direto levantaria `RuntimeError: cannot be called from a
+    running event loop` (foi exatamente o que aconteceu ao rodar o notebook.ipynb)."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        pokemon_id = ingest.extract_id(str(request.url))
+        return httpx.Response(200, json={"id": pokemon_id})
+
+    monkeypatch.setattr(httpx, "AsyncClient", _async_client_factory(handler))
+
+    async def _caller_with_running_loop():
+        # fetch_all é síncrona (não "await fetch_all(...)") — o ponto do teste é
+        # chamá-la de dentro de uma coroutine já em execução num loop ativo.
+        return ingest.fetch_all(
+            ["https://pokeapi.co/api/v2/pokemon/1/"], cache_dir=tmp_path
+        )
+
+    result = asyncio.run(_caller_with_running_loop())
+
+    assert result == [{"id": 1}]
+
+
 # ---------------------------------------------------------------------------
 # helpers de mock
 # ---------------------------------------------------------------------------

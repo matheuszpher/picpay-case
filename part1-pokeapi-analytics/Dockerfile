@@ -11,6 +11,7 @@ ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 WORKDIR /app
 COPY . .
-RUN pip install --no-cache-dir -e ".[dev]"
+RUN pip install --no-cache-dir -e ".[dev]" \
+    && python -m ipykernel install --sys-prefix --name python3 --display-name "Python 3"
 
-CMD ["python", "-m", "src.ingest"]
+CMD ["papermill", "notebook.ipynb", "notebook.ipynb", "--log-output"]

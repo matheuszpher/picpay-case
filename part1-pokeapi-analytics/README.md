@@ -24,7 +24,7 @@ part1-pokeapi-analytics/
 │   ├── transform.py    # bronze -> silver (4 tabelas) com schema explícito [pronto]
 │   ├── quality.py      # checks: not-null, unicidade, integridade ref.     [pronto]
 │   └── analysis.py     # gold: as 3 análises                              [pronto]
-├── notebook.ipynb       # entregável exigido: extração + tabelas + análises
+├── notebook.ipynb       # entregável: orquestra ingest->transform->quality->analysis [pronto]
 ├── tests/
 ├── data/                # bronze cache (gitignore no volumoso)
 ├── Dockerfile
@@ -49,18 +49,36 @@ Fórmulas, passo a passo e a pegadinha da média em Q1 estão detalhados na
 
 ## Como rodar
 
+**Pipeline completo** (ingest → transform → quality → as 3 análises), a partir desta
+pasta (`part1-pokeapi-analytics/`) — roda o dataset completo (~1350 pokémons) e
+imprime as 3 respostas no terminal:
+
+```bash
+docker compose up
+```
+
+Ou, a partir da raiz do repositório: `make up-p1` (ou `make analysis-p1`, alias do
+mesmo comando — nome usado no mini-spec da Parte 1).
+
+O cache bronze (`data/bronze/`, fora do git) persiste entre execuções — um segundo
+`docker compose up` reaproveita os JSONs já baixados e roda bem mais rápido (não bate
+na PokeAPI de novo). O `notebook.ipynb` já está commitado com as saídas de uma
+execução completa, então dá pra ver as 3 respostas e os gráficos sem rodar nada.
+
+**Só os testes:**
+
 ```bash
 docker build -t picpay-part1 .
 docker run --rm picpay-part1 python -m pytest tests/ -v
 ```
 
-> `docker-compose.yml` (subir o pipeline completo via `docker compose up`) ainda não
-> está atualizado para a implementação atual — cobre a etapa de análises (pendente).
+Ou `make test-p1` a partir da raiz.
 
 ## Status
 
-Ingestão, transformação, qualidade e análises implementadas e testadas (52/52 testes
-passando no Docker/Linux — ambiente oficial, ver
-[ADR-0015](../docs/adr/0015-spark-local-notebook-portavel.md)). Falta só o notebook
-(entregável final, amarra os módulos e narra os resultados). Detalhe completo em
+Ingestão, transformação, qualidade, análises e notebook implementados e testados
+(52/52 testes passando no Docker/Linux — ambiente oficial, ver
+[ADR-0015](../docs/adr/0015-spark-local-notebook-portavel.md)). `docker compose up`
+roda o pipeline completo de ponta a ponta e imprime as 3 respostas — critério de
+pronto da Parte 1 fechado. Detalhe completo em
 [`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md).
