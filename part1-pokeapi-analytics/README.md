@@ -23,7 +23,7 @@ part1-pokeapi-analytics/
 │   ├── ingest.py       # coleta async + cache bronze + retry/backoff       [pronto]
 │   ├── transform.py    # bronze -> silver (4 tabelas) com schema explícito [pronto]
 │   ├── quality.py      # checks: not-null, unicidade, integridade ref.     [pronto]
-│   └── analysis.py     # gold: as 3 análises                              [pendente]
+│   └── analysis.py     # gold: as 3 análises                              [pronto]
 ├── notebook.ipynb       # entregável exigido: extração + tabelas + análises
 ├── tests/
 ├── data/                # bronze cache (gitignore no volumoso)
@@ -44,8 +44,8 @@ part1-pokeapi-analytics/
 2. Abilities exclusivas de multi-tipo.
 3. Top 5 versatilidade.
 
-Fórmulas e passo a passo de cada análise serão detalhados em
-[`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md) quando `analysis.py` for implementado.
+Fórmulas, passo a passo e a pegadinha da média em Q1 estão detalhados na
+[Seção 4 de `docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md#4-análises--srcanalysispy).
 
 ## Como rodar
 
@@ -59,7 +59,8 @@ docker run --rm picpay-part1 python -m pytest tests/ -v
 
 ## Status
 
-Ingestão, transformação e qualidade implementadas e testadas (42/42 testes passando
-no Docker/Linux — ambiente oficial, ver [ADR-0015](../docs/adr/0015-spark-local-notebook-portavel.md)).
-Análises (`analysis.py`) e notebook ainda pendentes. Detalhe completo em
+Ingestão, transformação, qualidade e análises implementadas e testadas (52/52 testes
+passando no Docker/Linux — ambiente oficial, ver
+[ADR-0015](../docs/adr/0015-spark-local-notebook-portavel.md)). Falta só o notebook
+(entregável final, amarra os módulos e narra os resultados). Detalhe completo em
 [`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md).

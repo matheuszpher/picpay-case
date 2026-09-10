@@ -432,3 +432,180 @@ testes de Parquet que no Windows local ficam `skip`.
 [ADR-0007](../../docs/adr/0007-medallion-bronze-silver-gold.md) — o quality check é o
 portão entre silver e gold que garante que a camada gold só é gerada a partir de dados
 consistentes.
+
+---
+
+## 4. Análises — `src/analysis.py`
+
+### O que faz e onde
+
+Silver → gold: as 3 análises do mini-spec, como funções puras sobre `DataFrame`s —
+recebem os DFs do silver já carregados (nunca leem Parquet diretamente) e são
+determinísticas (mesma entrada, mesma saída, sem estado global além do cache do
+Spark).
+
+| Função | Assinatura | Responsabilidade |
+|---|---|---|
+| `forca` | `(stats) -> DataFrame` | `[pokemon_id, forca]` = soma de todos os `base_stat` por pokémon. Cacheada. |
+| `q1_multitype_above_avg` | `(pokemon, types, stats) -> tuple[int, DataFrame]` | Quantos pokémons são multi-tipo E têm força acima da média? `(resultado, df_detalhe)` |
+| `q2_abilities_exclusive_multitype` | `(types, abilities) -> DataFrame` | `[ability_name]` — abilities que nunca aparecem em pokémon mono-tipo |
+| `q3_top5_versatility` | `(pokemon, types, stats, abilities) -> DataFrame` | `[pokemon_id, name, versatility_score]` — top 5 por versatilidade |
+
+Suporte privado: `_n_types(types)` (contagem de tipos distintos por pokémon,
+reaproveitada por Q1, Q2 e Q3).
+
+### Como foi implementado
+
+- **`forca(stats)`:** `stats.groupBy("pokemon_id").agg(F.sum("base_stat")...)`,
+  seguido de `.cache()` antes de retornar. Chamada internamente por `q1` e por `q3`
+  (cada uma recebe `stats`, não `forca` já pronta — ver "Por quê" abaixo).
+- **`q1_multitype_above_avg`:** calcula `forca_df` e `n_types_df`; a média usada no
+  filtro vem de `forca_df.agg(F.avg("forca")).first()[0]` — **um valor escalar**
+  extraído do DataFrame de forças (uma linha por pokémon), não uma agregação sobre a
+  tabela de stats crua. Filtra `n_types > 1 AND forca > media`, junta com `pokemon`
+  só para trazer o `name` no detalhe, e `.count()` no resultado final.
+- **`q2_abilities_exclusive_multitype`:** `n_types_df` cruzado com `abilities` dá,
+  para cada linha de habilidade, quantos tipos o pokémon dono tem; filtra
+  `n_types == 1` e tira o conjunto distinto de `ability_name` (abilities que
+  aparecem em ALGUM mono-tipo); o resultado final é
+  `abilities.distinct().subtract(abilities_em_mono)`.
+- **`q3_top5_versatility`:** monta `forca_df`, `n_types_df` e `n_abilities_df`
+  (`countDistinct("ability_name")` por pokémon — conta também as com
+  `is_hidden=true`, contract explícito do mini-spec), junta os três por
+  `pokemon_id`, calcula a coluna `versatility_score = n_types*2 + n_abilities +
+  forca/100`, ordena por `(score desc, pokemon_id asc)`, corta em 5 e só então junta
+  com `pokemon` para trazer o `name` das 5 linhas finais.
+- **Broadcast:** todo join de uma tabela grande (`forca_df`, `abilities`) contra uma
+  agregação derivada de dimensão pequena (`n_types_df`, `n_abilities_df`, ou o
+  `pokemon.select("pokemon_id", "name")` reduzido) usa `F.broadcast(...)` do lado
+  pequeno — evita shuffle nessas junções.
+
+### Por quê (tradeoffs de implementação)
+
+- **A pegadinha da média (Q1), explícita no código:** "média geral da força" é a
+  média das **forças por pokémon** — uma linha por pokémon no `forca_df` — não a
+  média linha-a-linha da tabela `pokemon_stats` (que tem uma linha por
+  combinação pokémon×stat, então pesaria errado pokémons com mais stats
+  registrados). O código calcula `forca_df.agg(F.avg("forca"))`, isto é, a média é
+  tirada **depois** de já ter agregado por pokémon, nunca direto sobre
+  `stats.select("base_stat")`. Isso está comentado explicitamente no docstring de
+  `q1_multitype_above_avg` (não só aqui) para quem ler o código não repetir o erro
+  numa mudança futura. O teste `test_q1_uses_average_of_forca_per_pokemon...`
+  documenta e trava numericamente essa diferença (ver "Estratégia de testes").
+- **`forca(stats)` chamada de forma independente por `q1` e `q3` (não passada como
+  parâmetro entre elas) — e por que isso não quebra o `cache()`:** o mini-spec fixa
+  as assinaturas de `q1`/`q3` recebendo `stats` (a tabela crua), não `forca` já
+  pronta. Isso significa que, na prática, `q1_multitype_above_avg` e
+  `q3_top5_versatility` cada uma chama `forca(stats)` por conta própria — dois
+  objetos Python de `DataFrame` diferentes. Isso é seguro porque o `cache()` do
+  Spark não é indexado pela instância Python do objeto, e sim pelo **plano lógico
+  analisado** da consulta: se as duas chamadas recebem o mesmo `stats` de entrada e
+  aplicam exatamente a mesma transformação (`groupBy("pokemon_id").agg(sum(...))`),
+  o `CacheManager` do Spark reconhece os planos como equivalentes e reaproveita os
+  dados já materializados na segunda chamada, sem recomputar. Na prática, isso só
+  funciona se as duas chamadas realmente recebem o mesmo objeto `stats` (o mesmo
+  DataFrame de origem) — é assim que uma futura orquestração (notebook) deve
+  chamar `q1`/`q3`, passando o `stats` lido uma única vez do Parquet.
+- **`_n_types` extraído como função privada compartilhada:** Q1, Q2 e Q3 precisam
+  da mesma contagem de tipos por pokémon; extrair evita reescrever a mesma
+  `groupBy`/`countDistinct` três vezes e garante que as três análises usam
+  exatamente a mesma definição de "quantos tipos esse pokémon tem".
+- **Q2 segue os passos literais do mini-spec (join com `n_types` completo, depois
+  filtra `== 1`) em vez de já juntar só com os mono-tipo pré-filtrados:** as duas
+  formas dão o mesmo resultado (join com `n_types_df` inteiro + filtro depois é
+  equivalente a filtrar `n_types_df` para mono-tipo antes do join), mas a primeira
+  foi escolhida por ser exatamente a receita descrita no mini-spec, mais fácil de
+  auditar linha a linha contra o enunciado — o `broadcast()` no join compensa
+  qualquer custo extra de trazer o `n_types` completo (é uma tabela pequena de
+  qualquer forma).
+- **Tiebreaker determinístico em Q3 (`pokemon_id` asc):** sem uma chave de desempate
+  explícita, `orderBy(score.desc()).limit(5)` não garante ordem estável entre linhas
+  com o mesmo `versatility_score` — o resultado do top 5 poderia variar entre
+  execuções (ou entre um plano de 1 partição local e um cluster com várias
+  partições) quando há empate na borda do corte. Ordenar por
+  `(score desc, pokemon_id asc)` antes do `limit(5)` fixa qual dos empatados entra.
+- **`q1`/`q3` recebem `pokemon` só para anexar o `name`:** o cálculo de contagem/
+  score em si não depende de nenhuma coluna de `pokemon` além do `pokemon_id`
+  (que já vem de `forca`/`n_types`); `pokemon` é usado exclusivamente para tornar o
+  resultado legível (nome em vez de só id) — por isso o join com `pokemon` é sempre
+  o último passo, depois de já ter reduzido as linhas ao mínimo necessário
+  (o `.filter(...)` em Q1, o `.limit(5)` em Q3).
+
+### Edge cases tratados
+
+- **Empate exatamente na borda do top 5:** coberto explicitamente no fixture de
+  teste (dois pokémons com o mesmo `versatility_score`, um deles posicionado como
+  o 5º/6º colocado) — sem o tiebreaker, esse caso teria resultado ambíguo.
+  Ver "Estratégia de testes".
+- **Pokémon sem nenhuma ability/tipo/stat:** não aparece nos DataFrames agregados
+  correspondentes (`_n_types`, `n_abilities_df`, `forca`) — como os joins entre
+  essas agregações e `forca_df`/`abilities` são `inner join` (default), um pokémon
+  faltando em uma das três dimensões simplesmente não entra no resultado de Q1/Q3
+  (não gera `null` nem erro). Não há pokémon assim no dicionário de dados real
+  (todo pokémon tem pelo menos 1 tipo/stat/ability), mas vale registrar o
+  comportamento caso o dado de entrada um dia tenha uma lacuna.
+- **`n_abilities` conta habilidades escondidas:** `is_hidden=true` participa da
+  contagem normalmente (`countDistinct("ability_name")` não filtra por
+  `is_hidden`) — decisão explícita do mini-spec, testada indiretamente pelo
+  fixture (bulbasaur tem uma ability hidden e uma não-hidden, `n_abilities=2`).
+
+### Bugs encontrados e corrigidos
+
+Nenhum bug de implementação encontrado nesta etapa — construído diretamente sobre os
+contratos de `transform.py`/`quality.py` já validados nas etapas anteriores, e a
+suíte de testes com valores calculados à mão (ver abaixo) pegaria qualquer erro de
+lógica antes de chegar ao Docker.
+
+### Estratégia de testes
+
+`tests/test_analysis.py` usa o mesmo padrão de `test_quality.py` (schemas locais
+`nullable=True`, independentes de `transform.py`) com um fixture de **6 pokémons**
+desenhado para que as 3 respostas sejam calculáveis à mão e verificáveis
+exatamente — não é um teste de "rodou sem lançar exceção":
+
+- **`forca`:** valores exatos por pokémon (`{1: 94, 2: 122, 3: 91, 4: 92, 5: 85, 6:
+  92}`) e um teste dedicado que confirma `storageLevel.useMemory is True` (prova
+  de que o `.cache()` foi de fato chamado).
+- **Q1 — a pegadinha, travada numericamente:** soma total de `base_stat` = 576 nos
+  dois cenários (são o mesmo número, a soma não muda com o agrupamento), mas a
+  média certa (das 6 forças) é `576/6 = 96.0`, enquanto a média errada (das 12
+  linhas de stat) seria `576/12 = 48.0`. Com o divisor certo, só `ivysaur` (forca
+  122) supera a média E é multi-tipo → `resultado == 1`. Com o divisor errado,
+  `bulbasaur` (94), `ivysaur` (122) e `pidgey` (85) passariam do limiar (48) →
+  `resultado` seria `3`. O teste
+  `test_q1_uses_average_of_forca_per_pokemon_not_average_of_raw_base_stat` afirma
+  `resultado == 1` e documenta no docstring por que `3` seria o valor de uma
+  implementação errada — qualquer regressão nessa conta muda o resultado
+  observável do teste, não só um detalhe interno.
+- **Q2 — as 3 categorias pedidas, todas no mesmo fixture:** `overgrow` (só em
+  bulbasaur e ivysaur, ambos multi-tipo) e `keen-eye` (só em pidgey, multi-tipo)
+  **têm que entrar**; `chlorophyll` (aparece no bulbasaur **e** no charmander,
+  mono-tipo) **tem que ficar de fora** — é o caso mais traiçoeiro, porque uma
+  implementação que verificasse só "aparece em algum multi-tipo" (em vez de "nunca
+  aparece em mono-tipo") incluiria `chlorophyll` erradamente; `blaze`/`torrent`/
+  `run-away` (só em mono-tipo) ficam de fora de forma trivial. Um teste final
+  (`test_q2_exact_result_set`) confere o conjunto exato
+  `{"overgrow", "keen-eye"}`, além dos testes que isolam cada categoria.
+- **Q3 — ranking e tiebreaker:** `squirtle` (id 4) e `rattata` (id 6) têm
+  `versatility_score` idêntico (3.92) de propósito, posicionados exatamente na
+  fronteira do corte top-5/6º-lugar. O teste confere a lista ordenada completa de
+  `pokemon_id`, `name` e `versatility_score` (com `pytest.approx` para a divisão
+  fracionária de `forca/100`) e, separadamente, confirma que `squirtle` (id menor)
+  entra e `rattata` (id maior) fica de fora — sem o `orderBy` com a chave de
+  desempate, esse teste seria instável (poderia passar ou falhar dependendo da
+  ordem física dos dados no plano do Spark).
+
+### Gotchas de ambiente
+
+Nenhum novo além dos já descritos nas seções de `transform.py`/`quality.py` (mesma
+fixture `spark` de `conftest.py`, mesmas exigências de JDK 8/11/17). Validado de
+ponta a ponta em Docker/Linux: **52/52 testes da Parte 1 passam** (`ingest` +
+`transform` + `quality` + `analysis`).
+
+### ADRs relacionados
+
+[ADR-0007](../../docs/adr/0007-medallion-bronze-silver-gold.md) — a camada gold
+(estas 3 análises) só é gerada depois do portão de qualidade do silver;
+`cache()`/`broadcast()` aqui são as otimizações citadas no blueprint original para
+esta etapa (a etapa de transform, por contraste, não teve otimização de
+performance como objetivo — ver seção 2).
