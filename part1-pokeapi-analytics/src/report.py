@@ -178,12 +178,12 @@ def build_html_report(results: dict) -> str:
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   body {{ font-family: {PICPAY_FONT}; margin: 0; background: #F5F7F6; color: {PICPAY_DARK}; }}
-  header {{ background: #fff; padding: 24px 40px; border-bottom: 4px solid {PICPAY_GREEN};
-            display: flex; align-items: center; gap: 20px; }}
-  header img {{ height: 36px; }}
-  header .title {{ border-left: 1px solid #D7DEDA; padding-left: 20px; }}
-  header h1 {{ margin: 0; font-weight: 700; font-size: 20px; color: {PICPAY_DARK}; }}
-  header p {{ margin: 2px 0 0; color: #5b6b64; font-size: 13px; }}
+  header {{ background: #fff; padding: 28px 40px; border-bottom: 4px solid {PICPAY_GREEN};
+            display: flex; align-items: center; gap: 24px; }}
+  header img {{ height: 64px; }}
+  header .title {{ border-left: 1px solid #D7DEDA; padding-left: 24px; }}
+  header h1 {{ margin: 0; font-weight: 700; font-size: 30px; color: {PICPAY_DARK}; }}
+  header p {{ margin: 4px 0 0; color: #5b6b64; font-size: 16px; }}
   main {{ padding: 32px 40px; max-width: 900px; margin: 0 auto; }}
   .cards {{ display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 32px; }}
   .card {{ background: #fff; border-radius: 12px; padding: 20px 24px;
