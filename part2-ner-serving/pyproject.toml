@@ -1,13 +1,16 @@
 [project]
 name = "part2-ner-serving"
 version = "0.1.0"
-description = "Serviço de NER (spaCy) com provider abstrato, REST + MCP — PicPay ML Case, Parte 2"
+description = "Serviço de NER (spaCy) com provider abstrato, REST + MCP: PicPay ML Case, Parte 2"
 requires-python = ">=3.11"
 dependencies = [
+    "pydantic>=2.5",
+    "pydantic-settings>=2.1",
+    "spacy>=3.7.2,<3.8",
+    "click>=8.1,<9",
+    "en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl",
     # "fastapi",
     # "uvicorn",
-    # "pydantic",
-    # "spacy",
     # "fastmcp",
     # "redis",
     # "prometheus-client",
@@ -15,11 +18,16 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    # "pytest",
+    "pytest>=8",
     # "ruff",
     # "black",
     # "mypy",
 ]
+
+[tool.ruff.lint.per-file-ignores]
+# Timestamp fixo de propósito nos testes: comparação determinística, sem fuso
+# horário relevante (mesmo padrão da Parte 1).
+"tests/test_schemas.py" = ["DTZ001"]
 
 [build-system]
 requires = ["setuptools>=68"]
