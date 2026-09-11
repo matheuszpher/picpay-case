@@ -1,4 +1,5 @@
-# Stub — Fase 0 (esqueleto). Sobe api + redis (Prometheus/Grafana entram na Fase 3).
+# Dockerfile ainda é stub (fase 2.7 finaliza a imagem da api); prometheus e grafana
+# já são reais a partir da fase 2.6 e não dependem da imagem da api pra subir.
 services:
   api:
     build: .
@@ -11,3 +12,30 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    # Sobe mas ainda não é usado: RedisCache real só chega na fase 2.8 (stretch,
+    # CACHE_BACKEND=redis). Documentado aqui para não parecer esquecido: ver
+    # ADR-0004 e a seção "Redis" de docs/IMPLEMENTATION.md.
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus

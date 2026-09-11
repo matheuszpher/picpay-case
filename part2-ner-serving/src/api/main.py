@@ -1,22 +1,29 @@
 """Transporte REST (FastAPI): fino, reusa nercore.service (ADR-0003, ADR-0008).
 
-Endpoints: /load/, /predict/, /list/, /models/, /health/, DELETE /models/{version}.
-/metrics entra na fase 2.6. Nenhuma regra de negócio vive aqui: cada rota só chama
-`NERService` e traduz o resultado (ou a exceção) para HTTP.
+Endpoints: /load/, /predict/, /list/, /models/, /health/, DELETE /models/{version},
+/metrics. Nenhuma regra de negócio vive aqui: cada rota só chama `NERService` e
+traduz o resultado (ou a exceção) para HTTP.
 """
 
 from __future__ import annotations
 
 import logging
+import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel
 
+from src.api.observability import (
+    RequestLoggingMiddleware,
+    configure_logging,
+    metrics_response,
+    record_prediction,
+)
 from src.nercore.cache import InMemoryLRUCache
 from src.nercore.config import settings
 from src.nercore.history import PredictionHistory
@@ -32,6 +39,7 @@ from src.nercore.schemas import (
 )
 from src.nercore.service import EmptyTextError, NERService, NoActiveModelError
 
+configure_logging(settings.LOG_LEVEL)
 logger = logging.getLogger(__name__)
 
 
@@ -59,6 +67,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="PicPay ML Case: NER Serving", lifespan=lifespan)
+app.add_middleware(RequestLoggingMiddleware)
 
 
 def get_service(request: Request) -> NERService:
@@ -141,7 +150,13 @@ def load_model(
 def predict(
     payload: PredictRequest, service: NERService = Depends(get_service)
 ) -> PredictResult:
-    return service.predict(payload.text, model=payload.model)
+    start = time.perf_counter()
+    result = service.predict(payload.text, model=payload.model)
+    duration_seconds = time.perf_counter() - start
+    record_prediction(
+        model=result.model, cached=result.cached, duration_seconds=duration_seconds
+    )
+    return result
 
 
 @app.get("/list/", response_model=list[PredictionRecord])
@@ -173,3 +188,8 @@ def delete_model(
 ) -> DeleteResponse:
     service.delete_model(version)
     return DeleteResponse(removed=version)
+
+
+@app.get("/metrics")
+def metrics() -> Response:
+    return metrics_response()

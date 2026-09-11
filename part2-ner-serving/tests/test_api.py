@@ -196,6 +196,14 @@ def test_health_after_load(tmp_path):
     assert body["models_loaded"] == 1
 
 
+def test_every_response_carries_a_request_id_header(tmp_path):
+    client, _ = _make_client(tmp_path)
+
+    response = client.get("/health/")
+
+    assert "X-Request-ID" in response.headers
+
+
 # --- DELETE /models/{version} ---
 
 
@@ -240,3 +248,28 @@ def test_predict_end_to_end_with_real_spacy_provider(tmp_path):
     assert body["model"] == "en_core_web_sm"
     labels = {e["label"] for e in body["entities"]}
     assert labels & {"PERSON", "ORG"}
+
+
+# --- GET /metrics ---
+
+
+def test_metrics_exposes_prometheus_text_format(tmp_path):
+    # Nome de modelo exclusivo deste teste: PREDICTIONS_TOTAL e os outros contadores
+    # são singletons de módulo (decisão de design da fase 2.6), então reusar um nome
+    # de modelo já usado por outro teste desta suíte contaminaria a contagem.
+    client, _ = _make_client(tmp_path)
+    client.post("/load/", json={"model": "metrics-endpoint-model"})
+    client.post("/predict/", json={"text": "texto", "model": "metrics-endpoint-model"})
+
+    response = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+    body = response.text
+    assert 'ner_predictions_total{model="metrics-endpoint-model"} 1.0' in body
+    assert (
+        'ner_cache_requests_total{model="metrics-endpoint-model",result="miss"} 1.0'
+        in body
+    )
+    assert "ner_predict_latency_seconds" in body
+    assert "ner_http_requests_total" in body

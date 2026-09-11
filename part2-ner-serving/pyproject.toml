@@ -12,8 +12,8 @@ dependencies = [
     "fastapi>=0.110,<1",
     "uvicorn>=0.29,<1",
     "fastmcp>=4.0,<5",
+    "prometheus-client>=0.20,<1",
     # "redis",
-    # "prometheus-client",
 ]
 
 [project.optional-dependencies]
