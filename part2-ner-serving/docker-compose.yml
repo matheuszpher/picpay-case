@@ -1,10 +1,13 @@
-# Dockerfile ainda é stub (fase 2.7 finaliza a imagem da api); prometheus e grafana
-# já são reais a partir da fase 2.6 e não dependem da imagem da api pra subir.
+# Sobe os 4 serviços da Parte 2: api (REST) + redis (ainda inerte) + prometheus +
+# grafana. "docker compose up --build" deixa tudo de pé, com o dashboard e o
+# scrape já provisionados (ver docs/IMPLEMENTATION.md, fase 2.6).
 services:
   api:
     build: .
     ports:
       - "8000:8000"
+    volumes:
+      - ./data:/app/data
     depends_on:
       - redis
 

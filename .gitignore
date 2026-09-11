@@ -12,7 +12,9 @@ venv/
 part1-pokeapi-analytics/data/*
 !part1-pokeapi-analytics/data/.gitkeep
 
-# Histórico local de serving
+# Histórico local de serving (docker-compose monta ./data:/app/data)
+part2-ner-serving/data/*
+!part2-ner-serving/data/.gitkeep
 part2-ner-serving/*.db
 part2-ner-serving/*.sqlite3
 

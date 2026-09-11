@@ -7,7 +7,7 @@ help:
 	@echo "  make up-p1       - roda o pipeline completo da Parte 1 (ingest->transform->quality->analysis)"
 	@echo "                     e imprime as 3 respostas (executa o notebook via papermill)"
 	@echo "  make analysis-p1 - alias de 'make up-p1' (nome usado no mini-spec da Parte 1)"
-	@echo "  make up-p2       - sobe so a Parte 2 (api + redis)"
+	@echo "  make up-p2       - sobe a Parte 2 (api + redis + prometheus + grafana)"
 	@echo "  make test        - roda os testes de part1 e part2"
 	@echo "  make test-p1     - roda so os testes da Parte 1"
 	@echo "  make test-p2     - roda so os testes da Parte 2"
@@ -31,7 +31,7 @@ down-p1:
 	docker compose -f part1-pokeapi-analytics/docker-compose.yml down
 
 up-p2:
-	docker compose -f part2-ner-serving/docker-compose.yml up -d
+	docker compose -f part2-ner-serving/docker-compose.yml up --build -d
 
 down-p2:
 	docker compose -f part2-ner-serving/docker-compose.yml down
