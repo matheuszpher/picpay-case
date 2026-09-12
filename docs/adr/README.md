@@ -23,3 +23,5 @@ e ruim).
 | [0013](0013-sem-frontend-custom.md) | Sem frontend custom (+ Gradio opcional) | Aceito |
 | [0014](0014-prometheus-grafana.md) | Prometheus + Grafana | Aceito |
 | [0015](0015-spark-local-notebook-portavel.md) | Ambiente Spark: local dockerizado + notebook portável | Aceito |
+| [0016](0016-docker-compose-ambiente-oficial-parte2.md) | Docker Compose como ambiente oficial da Parte 2 | Aceito |
+| [0017](0017-sem-autenticacao-no-mvp.md) | Sem autenticação neste MVP (API key fica em backlog) | Aceito |
