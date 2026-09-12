@@ -1,7 +1,7 @@
 [project]
 name = "part1-pokeapi-analytics"
 version = "0.1.0"
-description = "Pipeline batch (PokeAPI + PySpark) em camadas medallion — PicPay ML Case, Parte 1"
+description = "Pipeline batch (PokeAPI + PySpark) em camadas medallion: PicPay ML Case, Parte 1"
 requires-python = ">=3.11"
 dependencies = [
     "httpx>=0.27",
@@ -24,6 +24,9 @@ dev = [
 # Fixtures de teste usam datetimes naive de propósito (comparação determinística de
 # strings/nomes de arquivo, sem fuso horário relevante).
 "tests/test_report.py" = ["DTZ001", "DTZ005"]
+# Mesmo motivo: generated_at usa datetime.now() naive de propósito, é hora local
+# de parede pro nome do arquivo e pro rodapé do relatório, não UTC.
+"notebook.ipynb" = ["DTZ005"]
 
 [build-system]
 requires = ["setuptools>=68"]
