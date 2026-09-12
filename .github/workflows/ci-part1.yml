@@ -1,16 +1,15 @@
-name: CI
+name: CI (Parte 1)
 
 on:
   push:
     branches: [main]
+    paths: ["part1-pokeapi-analytics/**", ".github/workflows/ci-part1.yml"]
   pull_request:
+    paths: ["part1-pokeapi-analytics/**", ".github/workflows/ci-part1.yml"]
 
 jobs:
   lint-test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        project: [part1-pokeapi-analytics, part2-ner-serving]
     steps:
       - uses: actions/checkout@v4
 
@@ -18,8 +17,7 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Set up Java (PySpark, Parte 1)
-        if: matrix.project == 'part1-pokeapi-analytics'
+      - name: Set up Java (PySpark)
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -28,15 +26,13 @@ jobs:
       - name: Install project + lint/test tools
         run: |
           pip install ruff black
-          pip install -e "./${{ matrix.project }}[dev]"
+          pip install -e "./part1-pokeapi-analytics[dev]"
 
       - name: Lint (ruff)
-        run: ruff check ${{ matrix.project }}
+        run: ruff check part1-pokeapi-analytics
 
       - name: Format check (black)
-        run: black --check ${{ matrix.project }}
+        run: black --check part1-pokeapi-analytics
 
       - name: Test (pytest)
-        run: |
-          cd ${{ matrix.project }}
-          pytest || [ $? -eq 5 ]  # exit 5 = nenhum teste coletado ainda (esqueleto, Fase 0)
+        run: cd part1-pokeapi-analytics && pytest
