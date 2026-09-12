@@ -12,7 +12,7 @@ import logging
 
 from fastmcp import FastMCP
 
-from src.nercore.cache import InMemoryLRUCache
+from src.nercore.cache import build_cache
 from src.nercore.config import settings
 from src.nercore.history import PredictionHistory
 from src.nercore.providers.base import ModelLoadError
@@ -31,7 +31,7 @@ _service: NERService | None = None
 def _build_service() -> NERService:
     registry = ModelRegistry(provider_factory=SpacyNERProvider)
     history = PredictionHistory(settings.HISTORY_DB_PATH)
-    cache = InMemoryLRUCache()
+    cache = build_cache(settings.CACHE_BACKEND, settings.REDIS_URL)
     return NERService(registry=registry, history=history, cache=cache)
 
 

@@ -13,7 +13,7 @@ dependencies = [
     "uvicorn>=0.29,<1",
     "fastmcp>=4.0,<5",
     "prometheus-client>=0.20,<1",
-    # "redis",
+    "redis>=5.0,<6",
 ]
 
 [project.optional-dependencies]

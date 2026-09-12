@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.nercore.cache import InMemoryLRUCache, cache_key
+from src.nercore.cache import InMemoryLRUCache, RedisCache, build_cache, cache_key
 from src.nercore.schemas import Entity
 
 
@@ -65,3 +65,25 @@ def test_lru_evicts_the_least_recently_used_entry():
 def test_max_size_must_be_positive():
     with pytest.raises(ValueError):
         InMemoryLRUCache(max_size=0)
+
+
+# --- build_cache ---
+
+
+def test_build_cache_memory_returns_in_memory_lru_cache():
+    cache = build_cache("memory", "redis://localhost:6379/0")
+
+    assert isinstance(cache, InMemoryLRUCache)
+
+
+def test_build_cache_redis_returns_redis_cache_without_connecting():
+    # redis.Redis.from_url() é preguiçoso: não conecta até o primeiro comando, então
+    # isto não precisa de um Redis de verdade no ar.
+    cache = build_cache("redis", "redis://localhost:6379/0")
+
+    assert isinstance(cache, RedisCache)
+
+
+def test_build_cache_unknown_backend_raises():
+    with pytest.raises(ValueError):
+        build_cache("memcached", "redis://localhost:6379/0")

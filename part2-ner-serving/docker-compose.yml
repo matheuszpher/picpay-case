@@ -1,6 +1,7 @@
-# Sobe os 4 serviços da Parte 2: api (REST) + redis (ainda inerte) + prometheus +
-# grafana. "docker compose up --build" deixa tudo de pé, com o dashboard e o
-# scrape já provisionados (ver docs/IMPLEMENTATION.md, fase 2.6).
+# Sobe os 4 serviços da Parte 2: api (REST) + redis + prometheus + grafana.
+# "docker compose up --build" deixa tudo de pé, com o dashboard e o scrape já
+# provisionados (fase 2.6), e a api usando Redis de verdade como cache (fase 2.8,
+# ver docs/IMPLEMENTATION.md e ADR-0004).
 services:
   api:
     build: .
@@ -8,6 +9,14 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/app/data
+    environment:
+      # "redis" (não "localhost"): nome do serviço, resolvido pela rede interna do
+      # compose. CACHE_BACKEND=memory continua sendo o default do código
+      # (config.py) para quem roda a API fora deste compose; aqui a demo completa
+      # liga Redis de propósito, para provar que a troca funciona de ponta a
+      # ponta, não só em teste.
+      - CACHE_BACKEND=redis
+      - REDIS_URL=redis://redis:6379/0
     depends_on:
       - redis
 
@@ -15,9 +24,10 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
-    # Sobe mas ainda não é usado: RedisCache real só chega na fase 2.8 (stretch,
-    # CACHE_BACKEND=redis). Documentado aqui para não parecer esquecido: ver
-    # ADR-0004 e a seção "Redis" de docs/IMPLEMENTATION.md.
+    # allkeys-lru: a política de evicção fica no próprio Redis, não em código
+    # Python (ver RedisCache em src/nercore/cache.py). 64mb é generoso para o
+    # volume de uma demo local; ajustar se o cache real precisar de mais.
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
 
   prometheus:
     image: prom/prometheus:v2.54.1
