@@ -88,9 +88,7 @@ def predict_and_highlight(text: str, model: str) -> dict:
 demo = gr.Interface(
     fn=predict_and_highlight,
     inputs=[
-        gr.Textbox(
-            label="Texto", placeholder="Send $100 to John tomorrow.", lines=3
-        ),
+        gr.Textbox(label="Texto", placeholder="Send $100 to John tomorrow.", lines=3),
         gr.Textbox(
             label="Modelo (opcional, usa o ativo se vazio)",
             placeholder=settings.DEFAULT_MODEL,
