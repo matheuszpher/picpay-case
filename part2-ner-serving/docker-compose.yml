@@ -1,7 +1,10 @@
-# Sobe os 4 serviços da Parte 2: api (REST) + redis + prometheus + grafana.
-# "docker compose up --build" deixa tudo de pé, com o dashboard e o scrape já
-# provisionados (fase 2.6), e a api usando Redis de verdade como cache (fase 2.8,
-# ver docs/IMPLEMENTATION.md e ADR-0004).
+# Sobe os 4 serviços centrais da Parte 2: api (REST) + redis + prometheus +
+# grafana. "docker compose up --build" deixa tudo de pé, com o dashboard e o
+# scrape já provisionados (fase 2.6), e a api usando Redis de verdade como cache
+# (fase 2.8, ver docs/IMPLEMENTATION.md e ADR-0004). O serviço "gradio" fica atrás
+# de um profile: só sobe com "docker compose --profile demo up --build" (ADR-0013:
+# é playground opcional, não deve pesar na subida padrão nem no tempo do
+# recrutador que só quer ver a API/observabilidade).
 services:
   api:
     build: .
@@ -52,3 +55,17 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       - prometheus
+
+  gradio:
+    build: .
+    profiles: ["demo"]
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - CACHE_BACKEND=redis
+      - REDIS_URL=redis://redis:6379/0
+    command: ["python", "-m", "src.gradio_app.app"]
+    depends_on:
+      - redis

@@ -7,6 +7,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 COPY . .
-RUN pip install --no-cache-dir -e ".[dev]"
+# "demo" (gradio) é instalado aqui, na imagem final, mas fora do "[dev]" que o CI
+# instala (ADR-0013: o playground não pode roubar tempo de CI). Um único
+# Dockerfile/imagem serve api, mcp_server e o gradio_app opcional, trocando só o
+# comando (ver docker-compose.yml).
+RUN pip install --no-cache-dir -e ".[dev,demo]"
 
 CMD ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -24,6 +24,12 @@ dev = [
     # "black",
     # "mypy",
 ]
+# Grupo separado de "dev" de propósito (ADR-0013: o playground não pode roubar
+# tempo de CI). O CI só instala ".[dev]"; só o Dockerfile (imagem final) instala
+# ".[dev,demo]", para o serviço opcional do compose ter o gradio disponível.
+demo = [
+    "gradio>=6.0,<7",
+]
 
 [tool.ruff.lint.per-file-ignores]
 # Timestamp fixo de propósito nos testes: comparação determinística, sem fuso
