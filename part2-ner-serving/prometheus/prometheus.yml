@@ -2,6 +2,12 @@ global:
   scrape_interval: 15s
 
 scrape_configs:
+  # Mesmo job para api e gradio: os dois expõem as mesmas métricas (compartilham
+  # src/api/observability.py), então os paineis do Grafana (que somam por
+  # "rate(...)" sem filtrar por instance) já agregam as duas fontes sem precisar
+  # de nenhuma mudança no dashboard. "gradio:7860" fica "down" no Prometheus
+  # quando o profile "demo" não está no ar (ADR-0013: playground opcional) --
+  # esperado, não é erro de configuração.
   - job_name: ner-serving
     static_configs:
-      - targets: ["api:8000"]
+      - targets: ["api:8000", "gradio:7860"]

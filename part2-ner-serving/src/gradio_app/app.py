@@ -4,14 +4,22 @@ Marcado como demo, não como transporte oficial: REST (fase 2.4) e MCP (fase 2.5
 continuam sendo as superfícies de consumo reais; isto só existe para visualizar o
 NER no navegador sem `curl`, Swagger ou o MCP Inspector. Construído só depois de
 tudo (fases 2.1 a 2.8) já pronto e testado, conforme as condições do ADR-0013.
+
+Expõe `/metrics` (ADR-0009) para o Prometheus também fazer scrape deste processo:
+sem isso, predições feitas aqui nunca apareceriam no Grafana, porque cada
+processo (api, gradio) tem sua própria contagem de métricas em memória, e o
+Prometheus só visita os alvos configurados em `prometheus/prometheus.yml`.
 """
 
 from __future__ import annotations
 
 import logging
+import time
 
 import gradio as gr
+from fastapi import FastAPI
 
+from src.api.observability import metrics_response, record_prediction
 from src.nercore.cache import build_cache
 from src.nercore.config import settings
 from src.nercore.history import PredictionHistory
@@ -57,10 +65,16 @@ def predict_and_highlight(text: str, model: str) -> dict:
     traceback), o mesmo espírito dos handlers de exceção da API REST.
     """
     service = _get_service()
+    start = time.perf_counter()
     try:
         result = service.predict(text, model=model.strip() or None)
     except (EmptyTextError, NoActiveModelError, ModelLoadError) as exc:
         raise gr.Error(str(exc)) from exc
+    duration_seconds = time.perf_counter() - start
+
+    record_prediction(
+        model=result.model, cached=result.cached, duration_seconds=duration_seconds
+    )
 
     return {
         "text": text,
@@ -96,5 +110,21 @@ demo = gr.Interface(
 )
 
 
+def _build_app() -> FastAPI:
+    """Monta a UI do Gradio numa app FastAPI que também expõe `/metrics`. Usar
+    `demo.launch()` sozinho não deixaria espaço para uma rota HTTP customizada;
+    `gr.mount_gradio_app` é o jeito documentado do próprio Gradio de combinar as
+    duas coisas no mesmo processo/porta.
+    """
+    app = FastAPI()
+    app.get("/metrics")(metrics_response)
+    return gr.mount_gradio_app(app, demo, path="/")
+
+
+app = _build_app()
+
+
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860)
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=7860)
