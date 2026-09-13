@@ -95,18 +95,40 @@ local (`pip install -e ".[dev]"`):
 
 **Opção 1: CLI do `fastmcp` (rápido, sem instalar nada extra)**
 
-```bash
-cd part2-ner-serving
+A partir de `part2-ner-serving/`, com o `.venv` já criado:
 
+**Linux:**
+
+```bash
 # lista as tools disponíveis e o schema de cada uma
-./.venv/Scripts/fastmcp.exe list --command "$(pwd)/.venv/Scripts/python.exe -m src.mcp_server.server" --input-schema
+./.venv/bin/fastmcp list --command "$(pwd)/.venv/bin/python -m src.mcp_server.server" --input-schema
 
 # chama extract_entities de verdade
-./.venv/Scripts/fastmcp.exe call --command "$(pwd)/.venv/Scripts/python.exe -m src.mcp_server.server" \
+./.venv/bin/fastmcp call --command "$(pwd)/.venv/bin/python -m src.mcp_server.server" \
   --target extract_entities --input-json '{"text": "Send $100 to John tomorrow."}'
 ```
 
-(No Linux/macOS, troque `./.venv/Scripts/` por `./.venv/bin/`.)
+**macOS:**
+
+```bash
+# lista as tools disponíveis e o schema de cada uma
+./.venv/bin/fastmcp list --command "$(pwd)/.venv/bin/python -m src.mcp_server.server" --input-schema
+
+# chama extract_entities de verdade
+./.venv/bin/fastmcp call --command "$(pwd)/.venv/bin/python -m src.mcp_server.server" \
+  --target extract_entities --input-json '{"text": "Send $100 to John tomorrow."}'
+```
+
+**Windows (PowerShell):**
+
+```powershell
+# lista as tools disponíveis e o schema de cada uma
+.\.venv\Scripts\fastmcp.exe list --command "$(Get-Location)\.venv\Scripts\python.exe -m src.mcp_server.server" --input-schema
+
+# chama extract_entities de verdade
+.\.venv\Scripts\fastmcp.exe call --command "$(Get-Location)\.venv\Scripts\python.exe -m src.mcp_server.server" `
+  --target extract_entities --input-json '{\"text\": \"Send $100 to John tomorrow.\"}'
+```
 
 Cada chamada sobe um processo novo (não é um servidor persistente): o modelo é
 recarregado a cada `call` (~1s de warm-up), e cache/registry não sobrevivem entre
@@ -118,13 +140,38 @@ disco.
 Exige `uv` (gerenciador de pacotes Python) e Node.js/`npx` instalados (o Inspector
 em si é um pacote npm, baixado automaticamente na primeira execução).
 
+**Linux:**
+
 ```bash
 # instalar uv uma vez, no próprio .venv do projeto
-./.venv/Scripts/python.exe -m pip install uv
+./.venv/bin/python -m pip install uv
 
-# subir o Inspector (adiciona o .venv/Scripts ao PATH desta sessão, pra o
+# subir o Inspector (adiciona o .venv/bin ao PATH desta sessão, pra o
 # fastmcp achar o uv sem precisar instalar globalmente)
-PATH="$(pwd)/.venv/Scripts:$PATH" ./.venv/Scripts/fastmcp.exe dev inspector -m src.mcp_server.server
+PATH="$(pwd)/.venv/bin:$PATH" ./.venv/bin/fastmcp dev inspector -m src.mcp_server.server
+```
+
+**macOS:**
+
+```bash
+# instalar uv uma vez, no próprio .venv do projeto
+./.venv/bin/python -m pip install uv
+
+# subir o Inspector (adiciona o .venv/bin ao PATH desta sessão, pra o
+# fastmcp achar o uv sem precisar instalar globalmente)
+PATH="$(pwd)/.venv/bin:$PATH" ./.venv/bin/fastmcp dev inspector -m src.mcp_server.server
+```
+
+**Windows (PowerShell):**
+
+```powershell
+# instalar uv uma vez, no próprio .venv do projeto
+.\.venv\Scripts\python.exe -m pip install uv
+
+# subir o Inspector (adiciona o .venv\Scripts ao PATH desta sessão, pra o
+# fastmcp achar o uv sem precisar instalar globalmente)
+$env:PATH = "$(Get-Location)\.venv\Scripts;$env:PATH"
+.\.venv\Scripts\fastmcp.exe dev inspector -m src.mcp_server.server
 ```
 
 O terminal imprime uma URL do tipo

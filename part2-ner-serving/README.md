@@ -83,15 +83,41 @@ part2-ner-serving/
 
 Pré-requisito único: Docker Desktop instalado e rodando (não precisa instalar Python nem nenhuma biblioteca na sua máquina). A partir desta pasta (`part2-ner-serving/`):
 
-**Linux / macOS / Windows (mesmo comando nos três, via terminal com Docker):**
+**Linux:**
 
 ```bash
 docker compose --profile demo up --build
 ```
 
-Esse comando sobe todos os 5 serviços de uma vez, incluindo o playground Gradio (que fica atrás de um profile do compose e não sobe com um `docker compose up --build` sem o `--profile demo`). Para derrubar tudo:
+**macOS:**
 
 ```bash
+docker compose --profile demo up --build
+```
+
+**Windows (PowerShell):**
+
+```powershell
+docker compose --profile demo up --build
+```
+
+Esse comando sobe todos os 5 serviços de uma vez, incluindo o playground Gradio (que fica atrás de um profile do compose e não sobe com um `docker compose up --build` sem o `--profile demo`). Para derrubar tudo:
+
+**Linux:**
+
+```bash
+docker compose --profile demo down
+```
+
+**macOS:**
+
+```bash
+docker compose --profile demo down
+```
+
+**Windows (PowerShell):**
+
+```powershell
 docker compose --profile demo down
 ```
 
@@ -108,7 +134,15 @@ Serviços e links (com a stack no ar):
 
 Testando `/predict/` pelo terminal (com a API no ar):
 
-**Linux / macOS:**
+**Linux:**
+
+```bash
+curl -X POST http://localhost:8000/predict/ \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Can you send $45 to Michael on June 3?"}'
+```
+
+**macOS:**
 
 ```bash
 curl -X POST http://localhost:8000/predict/ \
@@ -124,21 +158,18 @@ curl.exe -X POST http://localhost:8000/predict/ `
   -d '{\"text\": \"Can you send $45 to Michael on June 3?\"}'
 ```
 
-(`curl` sozinho no PowerShell é um alias de `Invoke-WebRequest`, com sintaxe diferente; use `curl.exe` para o comando real do curl.)
-
-**Windows (Git Bash ou WSL):**
-
-```bash
-curl -X POST http://localhost:8000/predict/ \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Can you send $45 to Michael on June 3?"}'
-```
-
 Ou, sem decorar nenhum comando, abra [localhost:8000/docs](http://localhost:8000/docs) (Swagger) e teste cada rota direto pelo navegador, em qualquer sistema operacional.
 
 Para rodar os testes automatizados (mesma imagem usada para servir a API):
 
-**Linux / macOS / Git Bash (Windows):**
+**Linux:**
+
+```bash
+docker build -t picpay-part2 .
+docker run --rm picpay-part2 python -m pytest tests/ -v
+```
+
+**macOS:**
 
 ```bash
 docker build -t picpay-part2 .
@@ -151,8 +182,6 @@ docker run --rm picpay-part2 python -m pytest tests/ -v
 docker build -t picpay-part2 .
 docker run --rm picpay-part2 python -m pytest tests/ -v
 ```
-
-(idêntico ao bash aqui, já que não usa `curl` nem barras de caminho.)
 
 ---
 
