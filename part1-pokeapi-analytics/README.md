@@ -97,7 +97,21 @@ Pipeline completo (ingest, transform, quality e as 3 análises), a partir desta 
 (`part1-pokeapi-analytics/`). Roda o dataset completo (~1350 pokémons) e imprime as 3
 respostas no terminal:
 
+**Linux:**
+
 ```bash
+docker compose up --build
+```
+
+**macOS:**
+
+```bash
+docker compose up --build
+```
+
+**Windows (PowerShell):**
+
+```powershell
 docker compose up --build
 ```
 
@@ -118,7 +132,23 @@ sobrescrito a cada run.
 
 Só os testes:
 
+**Linux:**
+
 ```bash
+docker build -t picpay-part1 .
+docker run --rm picpay-part1 python -m pytest tests/ -v
+```
+
+**macOS:**
+
+```bash
+docker build -t picpay-part1 .
+docker run --rm picpay-part1 python -m pytest tests/ -v
+```
+
+**Windows (PowerShell):**
+
+```powershell
 docker build -t picpay-part1 .
 docker run --rm picpay-part1 python -m pytest tests/ -v
 ```
