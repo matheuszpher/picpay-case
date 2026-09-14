@@ -1,9 +1,9 @@
-# Arquitetura — PicPay ML Case
+# Arquitetura: PicPay ML Case
 
 > Fonte da verdade do system design. Decisões e tradeoffs por trás de cada escolha estão em
 > [`docs/adr/`](adr/README.md).
 
-## 1. Contexto (C4 nível 1) — dois projetos independentes, mesmo repo
+## 1. Contexto (C4 nível 1): dois projetos independentes, mesmo repo
 
 ```mermaid
 flowchart LR
@@ -36,19 +36,20 @@ flowchart TB
         SVC --> CACHE[(Redis / LRU)]
         SVC --> HIST[(SQLite historico)]
         REST --> METRICS["/metrics"]
+        GRADIO -.tambem expoe.-> METRICS
     end
     subgraph OBS["Observabilidade"]
         PROM[Prometheus] --> GRAF[Grafana dashboards]
     end
-    subgraph INFRA["Infra (Terraform / AWS)"]
+    subgraph INFRA["Infra (Terraform / AWS) - planejada, nao implementada (ADR-0010)"]
         ECR[ECR] --> ECS[ECS Fargate] --> ALB[ALB]
         ELASTIC[(ElastiCache Redis)]
     end
     METRICS -.scrape.-> PROM
-    REST -.deploy.-> ECS
+    REST -.deploy futuro, nao construido.-> ECS
 ```
 
-## 3. Modelo de dados (ERD — Parte 1)
+## 3. Modelo de dados (ERD: Parte 1)
 
 ```mermaid
 erDiagram
@@ -78,7 +79,7 @@ erDiagram
     }
 ```
 
-## 4. Sequência — `/predict/` com cache
+## 4. Sequência: `/predict/` com cache
 
 ```mermaid
 sequenceDiagram
