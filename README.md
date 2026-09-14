@@ -3,7 +3,7 @@
 <img src="part1-pokeapi-analytics/assets/picpay-logo.png" alt="PicPay" width="180">
 
 > Dois projetos independentes, construídos com o mesmo padrão de engenharia. O serviço de
-> serving reflete pensamento de plataforma de ML; a análise de dados reflete disciplina de
+> serving reflete pensamento de plataforma de ML; a análise de dados reflete batch de
 > engenharia de dados.
 
 ## Por que dois projetos, não uma "plataforma única"
@@ -24,7 +24,6 @@ tradeoffs em [ADR-0012](docs/adr/0012-sem-plataforma-unica.md).
 ```
 picpay-ml-case/
 ├── README.md                      # este arquivo
-├── Makefile                       # atalhos: make up / make test / make ingest / make api
 ├── docs/
 │   ├── ARCHITECTURE.md            # system design + diagramas (fonte da verdade)
 │   ├── adr/                       # decisões de arquitetura (uma por arquivo)
@@ -52,8 +51,27 @@ dashboards Grafana. Ver README do projeto para como rodar.
 
 ## Como rodar
 
-Cada projeto sobe sozinho via Docker Compose, ver o README de cada um. Atalhos comuns no
-[`Makefile`](Makefile) da raiz: `make up`, `make test`, `make ingest`, `make api`.
+Cada projeto sobe sozinho via Docker Compose, sem precisar de nada além do Docker Desktop
+instalado e rodando (mesmos passos em Linux, macOS e Windows):
+
+1. Tenha o Docker Desktop instalado e rodando.
+2. Entre na pasta do projeto que quer subir:
+   ```bash
+   cd part1-pokeapi-analytics
+   ```
+   ou
+   ```bash
+   cd part2-ner-serving
+   ```
+3. Suba com Docker Compose:
+   ```bash
+   docker compose up --build
+   ```
+   Na Parte 2, use `docker compose --profile demo up --build` para incluir também o
+   playground Gradio opcional.
+
+Ver o README de cada projeto (seção "Como executar") para os comandos completos por
+sistema operacional, endpoints e comandos de teste.
 
 ## Documentação
 

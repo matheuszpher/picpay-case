@@ -96,8 +96,6 @@ docker compose up --build
 docker compose up --build
 ```
 
-A partir da raiz do repositório, o equivalente é `make up-p1` (ou `make analysis-p1`, alias do mesmo comando).
-
 Só os testes:
 
 **Linux:**
@@ -121,7 +119,6 @@ docker build -t picpay-part1 .
 docker run --rm picpay-part1 python -m pytest tests/ -v
 ```
 
-A partir da raiz, `make test-p1`.
 
 ---
 
