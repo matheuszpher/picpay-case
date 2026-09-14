@@ -73,6 +73,18 @@ instalado e rodando (mesmos passos em Linux, macOS e Windows):
 Ver o README de cada projeto (seção "Como executar") para os comandos completos por
 sistema operacional, endpoints e comandos de teste.
 
+## CI (GitHub Actions)
+
+[![CI Parte 1](https://github.com/matheuszpher/picpay-case/actions/workflows/ci-part1.yml/badge.svg)](https://github.com/matheuszpher/picpay-case/actions/workflows/ci-part1.yml)
+[![CI Parte 2](https://github.com/matheuszpher/picpay-case/actions/workflows/ci-part2.yml/badge.svg)](https://github.com/matheuszpher/picpay-case/actions/workflows/ci-part2.yml)
+
+Cada projeto tem seu próprio pipeline ([`ci-part1.yml`](.github/workflows/ci-part1.yml),
+[`ci-part2.yml`](.github/workflows/ci-part2.yml)), rodando lint (`ruff`), formatação
+(`black --check`) e a suíte de testes (`pytest`). Os workflows são filtrados por path: um
+commit que só mexe em `part1-pokeapi-analytics/` roda só a CI da Parte 1, e vice-versa, sem
+disparar o pipeline da parte que não mudou. Ver a execução em andamento ou o histórico completo
+na aba [Actions do repositório](https://github.com/matheuszpher/picpay-case/actions).
+
 ## Documentação
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): diagramas de contexto, contêineres, modelo de
