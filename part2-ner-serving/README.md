@@ -34,6 +34,8 @@ part2-ner-serving/
 │   └── gradio_app/          # playground opcional (ADR-0013), reusa nercore.service
 │       └── app.py
 ├── tests/
+├── scripts/
+│   └── test_mcp.py          # chama extract_entities via MCP em processo, sem aspas na linha de comando
 ├── prometheus/
 │   └── prometheus.yml
 ├── grafana/
@@ -101,25 +103,7 @@ docker compose --profile demo up --build
 docker compose --profile demo up --build
 ```
 
-Esse comando sobe todos os 5 serviços de uma vez, incluindo o playground Gradio (que fica atrás de um profile do compose e não sobe com um `docker compose up --build` sem o `--profile demo`). Para derrubar tudo:
-
-**Linux:**
-
-```bash
-docker compose --profile demo down
-```
-
-**macOS:**
-
-```bash
-docker compose --profile demo down
-```
-
-**Windows (PowerShell):**
-
-```powershell
-docker compose --profile demo down
-```
+Esse comando sobe todos os 5 serviços de uma vez, incluindo o playground Gradio (que fica atrás de um profile do compose e não sobe com um `docker compose up --build` sem o `--profile demo`).
 
 Serviços e links (com a stack no ar):
 
@@ -131,6 +115,14 @@ Serviços e links (com a stack no ar):
 | Prometheus (UI) | [localhost:9090](http://localhost:9090) |
 | Grafana (dashboard) | [localhost:3000](http://localhost:3000) (login `admin`/`admin`) |
 | Gradio (playground) | [localhost:7860](http://localhost:7860) |
+
+No Prometheus, a tela inicial vem vazia (é normal): digite `up` na caixa de busca e clique
+em **Execute** para ver os alvos monitorados.
+
+Forma mais fácil de testar: é aconselhável começar pelo
+[playground Gradio](http://localhost:7860), sem escrever nenhum comando. Basta abrir o
+link, digitar um texto e clicar em **Submit** para ver as entidades reconhecidas
+destacadas direto na tela.
 
 Testando `/predict/` pelo terminal (com a API no ar):
 
@@ -155,10 +147,40 @@ curl -X POST http://localhost:8000/predict/ \
 ```powershell
 curl.exe -X POST http://localhost:8000/predict/ `
   -H "Content-Type: application/json" `
-  -d '{\"text\": \"Can you send $45 to Michael on June 3?\"}'
+  -d '{"text": "Can you send $45 to Michael on June 3?"}'
 ```
 
 Ou, sem decorar nenhum comando, abra [localhost:8000/docs](http://localhost:8000/docs) (Swagger) e teste cada rota direto pelo navegador, em qualquer sistema operacional.
+
+### Testando o MCP
+
+O servidor MCP não sobe junto do `docker compose up` (ele fala stdio, não HTTP). Para testar
+manualmente, a partir de um `.venv` local (`pip install -e ".[dev]"`), use o script
+[`scripts/test_mcp.py`](scripts/test_mcp.py): ele chama a tool `extract_entities` direto em
+processo (sem depender de escapar JSON na linha de comando, algo que varia entre versões do
+PowerShell no Windows):
+
+**Linux:**
+
+```bash
+./.venv/bin/python scripts/test_mcp.py 'Can you send $45 to Michael on June 3?'
+```
+
+**macOS:**
+
+```bash
+./.venv/bin/python scripts/test_mcp.py 'Can you send $45 to Michael on June 3?'
+```
+
+**Windows (PowerShell):**
+
+```powershell
+.\.venv\Scripts\python.exe scripts\test_mcp.py 'Can you send $45 to Michael on June 3?'
+```
+
+Passo a passo completo de outras formas de testar (CLI do `fastmcp`, MCP Inspector: uma UI
+visual no navegador) em
+[`docs/DETALHES_TECNICOS.md`](docs/DETALHES_TECNICOS.md#testando-o-mcp-manualmente).
 
 Para rodar os testes automatizados (mesma imagem usada para servir a API):
 
@@ -181,6 +203,26 @@ docker run --rm picpay-part2 python -m pytest tests/ -v
 ```powershell
 docker build -t picpay-part2 .
 docker run --rm picpay-part2 python -m pytest tests/ -v
+```
+
+Para derrubar a stack (todos os 5 serviços, incluindo o Gradio):
+
+**Linux:**
+
+```bash
+docker compose --profile demo down
+```
+
+**macOS:**
+
+```bash
+docker compose --profile demo down
+```
+
+**Windows (PowerShell):**
+
+```powershell
+docker compose --profile demo down
 ```
 
 ---

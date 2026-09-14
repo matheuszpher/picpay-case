@@ -90,52 +90,77 @@ em disco.
 
 O servidor MCP não sobe junto do `docker compose up` (ele fala stdio, não HTTP;
 não faz sentido como container de longa duração da mesma forma que a API). Para
-testar fora dos testes automatizados, há duas opções, ambas a partir do `.venv`
-local (`pip install -e ".[dev]"`):
+testar fora dos testes automatizados, há três opções, todas a partir do `.venv`
+local (`pip install -e ".[dev]"`).
 
-**Opção 1: CLI do `fastmcp` (rápido, sem instalar nada extra)**
+**Opção 1: `scripts/test_mcp.py` (recomendada: funciona igual em qualquer terminal)**
 
-A partir de `part2-ner-serving/`, com o `.venv` já criado:
+Chama a tool `extract_entities` direto em processo, via `fastmcp.Client(mcp)`
+(cliente em memória, sem subir um subprocesso via stdio). O único argumento na
+linha de comando é o texto puro, sem JSON nem aspas aninhadas:
 
 **Linux:**
 
 ```bash
-# lista as tools disponíveis e o schema de cada uma
-./.venv/bin/fastmcp list --command "$(pwd)/.venv/bin/python -m src.mcp_server.server" --input-schema
-
-# chama extract_entities de verdade
-./.venv/bin/fastmcp call --command "$(pwd)/.venv/bin/python -m src.mcp_server.server" \
-  --target extract_entities --input-json '{"text": "Send $100 to John tomorrow."}'
+./.venv/bin/python scripts/test_mcp.py 'Can you send $45 to Michael on June 3?'
 ```
 
 **macOS:**
 
 ```bash
-# lista as tools disponíveis e o schema de cada uma
-./.venv/bin/fastmcp list --command "$(pwd)/.venv/bin/python -m src.mcp_server.server" --input-schema
-
-# chama extract_entities de verdade
-./.venv/bin/fastmcp call --command "$(pwd)/.venv/bin/python -m src.mcp_server.server" \
-  --target extract_entities --input-json '{"text": "Send $100 to John tomorrow."}'
+./.venv/bin/python scripts/test_mcp.py 'Can you send $45 to Michael on June 3?'
 ```
 
 **Windows (PowerShell):**
 
 ```powershell
-# lista as tools disponíveis e o schema de cada uma
-.\.venv\Scripts\fastmcp.exe list --command "$(Get-Location)\.venv\Scripts\python.exe -m src.mcp_server.server" --input-schema
-
-# chama extract_entities de verdade
-.\.venv\Scripts\fastmcp.exe call --command "$(Get-Location)\.venv\Scripts\python.exe -m src.mcp_server.server" `
-  --target extract_entities --input-json '{\"text\": \"Send $100 to John tomorrow.\"}'
+.\.venv\Scripts\python.exe scripts\test_mcp.py 'Can you send $45 to Michael on June 3?'
 ```
 
-Cada chamada sobe um processo novo (não é um servidor persistente): o modelo é
+Esse comando existe justamente por causa da Opção 2 abaixo: `fastmcp call
+--input-json` exige aspas aninhadas na linha de comando (`{"text": "..."}`), e o
+Windows PowerShell escapa essas aspas de forma diferente entre a versão 5.1 e a
+7.x (variável interna `$PSNativeCommandArgumentPassing`), então o mesmo comando
+pode funcionar numa máquina e falhar em outra com um erro de parsing de JSON.
+Como não dá para garantir qual versão de PowerShell quem for rodar este projeto
+vai ter, a Opção 1 evita o problema inteiro: só passa um argumento de texto
+simples, sem aspas internas, para qualquer versão de shell.
+
+**Opção 2: CLI do `fastmcp` (mais rápida para explorar, mas frágil no Windows)**
+
+Útil para listar as tools e ver o schema, sem instalar nada extra:
+
+**Linux:**
+
+```bash
+./.venv/bin/fastmcp list --command "$(pwd)/.venv/bin/python -m src.mcp_server.server" --input-schema
+```
+
+**macOS:**
+
+```bash
+./.venv/bin/fastmcp list --command "$(pwd)/.venv/bin/python -m src.mcp_server.server" --input-schema
+```
+
+**Windows (PowerShell):**
+
+```powershell
+$py = "$(Get-Location)\.venv\Scripts\python.exe" -replace '\\','/'
+.\.venv\Scripts\fastmcp.exe list --command "$py -m src.mcp_server.server" --input-schema
+```
+
+(o `-replace '\\','/'` é necessário: o parser de `--command` do fastmcp não lida bem com
+barras invertidas do Windows nesse argumento específico, então convertemos para barras
+normais antes de montar o comando. Isso é estável entre versões de PowerShell; o problema
+de aspas descrito acima é só no `--input-json` do `call`, por isso a Opção 1 existe para
+chamar a tool de verdade.)
+
+Cada chamada da CLI sobe um processo novo (não é um servidor persistente): o modelo é
 recarregado a cada `call` (~1s de warm-up), e cache/registry não sobrevivem entre
 chamadas separadas. Só `data/history.db` persiste de verdade, porque é arquivo em
-disco.
+disco. Isso vale igualmente para `scripts/test_mcp.py` (Opção 1).
 
-**Opção 2: MCP Inspector (UI visual no navegador)**
+**Opção 3: MCP Inspector (UI visual no navegador)**
 
 Exige `uv` (gerenciador de pacotes Python) e Node.js/`npx` instalados (o Inspector
 em si é um pacote npm, baixado automaticamente na primeira execução).
