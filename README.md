@@ -1,5 +1,7 @@
 # PicPay ML Case
 
+<img src="part1-pokeapi-analytics/assets/picpay-logo.png" alt="PicPay" width="180">
+
 > Dois projetos independentes, construídos com o mesmo padrão de engenharia. O serviço de
 > serving reflete pensamento de plataforma de ML; a análise de dados reflete disciplina de
 > engenharia de dados.

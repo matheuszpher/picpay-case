@@ -1,6 +1,6 @@
 # Parte 2: NER Serving
 
-![PicPay](assets/picpay-logo.png)
+<img src="assets/picpay-logo.png" alt="PicPay" width="180">
 
 Microsserviço de reconhecimento de entidades nomeadas (NER) com spaCy, rodando
 localmente via Docker. Documentação técnica completa (decisões de arquitetura,

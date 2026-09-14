@@ -1,5 +1,7 @@
 # Parte 1: PokeAPI Analytics (plano batch)
 
+<img src="assets/picpay-logo.png" alt="PicPay" width="180">
+
 Pipeline batch em camadas medallion (bronze/silver/gold) sobre a PokeAPI: ingestão assíncrona,
 4 tabelas do dicionário de dados modeladas via PySpark, 3 análises e checks de qualidade de
 dados. Projeto autossuficiente, roda sozinho, sem depender da Parte 2.
