@@ -2,102 +2,81 @@
 
 <img src="assets/picpay-logo.png" alt="PicPay" width="180">
 
-Pipeline batch em camadas medallion (bronze/silver/gold) sobre a PokeAPI: ingestão assíncrona,
-4 tabelas do dicionário de dados modeladas via PySpark, 3 análises e checks de qualidade de
-dados. Projeto autossuficiente, roda sozinho, sem depender da Parte 2.
+Pipeline batch em camadas medallion (bronze/silver/gold) sobre a PokeAPI, rodando
+localmente via Docker. Documentação técnica completa (por que Docker é
+obrigatório, o que quebra sem ele, detalhes do relatório gerado) em
+[`docs/DETALHES_TECNICOS.md`](docs/DETALHES_TECNICOS.md).
 
-Racional de arquitetura e diagramas: ver [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) e os
-ADRs [0006](../docs/adr/0006-ingestao-async-cache-bronze.md),
-[0007](../docs/adr/0007-medallion-bronze-silver-gold.md) e
-[0015](../docs/adr/0015-spark-local-notebook-portavel.md).
-
-Detalhe de implementação (como e por quê de cada módulo, edge cases, bugs corrigidos,
-estratégia de testes): [`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md).
-
-## Estrutura
+## 1. Estrutura de pastas
 
 ```
 part1-pokeapi-analytics/
 ├── assets/
 │   └── picpay-logo.png    # logo usada no relatório gerencial (versionada no git)
 ├── docs/
-│   └── IMPLEMENTATION.md  # registro de implementação (como/por quê por módulo)
+│   ├── IMPLEMENTATION.md      # registro de implementação (como/por quê por módulo)
+│   └── DETALHES_TECNICOS.md   # por quês, gotchas de ambiente, relatório HTML
 ├── pyproject.toml
 ├── src/
-│   ├── ingest.py       # coleta async + cache bronze + retry/backoff       [pronto]
-│   ├── transform.py    # bronze -> silver (4 tabelas) com schema explícito [pronto]
-│   ├── quality.py      # checks: not-null, unicidade, integridade ref.     [pronto]
-│   ├── analysis.py     # gold: as 3 análises                              [pronto]
-│   └── report.py       # persistência dos resultados + relatório HTML      [pronto]
-├── notebook.ipynb       # entregável: orquestra ingest->transform->quality->analysis->report [pronto]
+│   ├── ingest.py       # coleta async + cache bronze + retry/backoff
+│   ├── transform.py    # bronze -> silver (4 tabelas) com schema explícito
+│   ├── quality.py      # checks: not-null, unicidade, integridade ref.
+│   ├── analysis.py     # gold: as 3 análises
+│   └── report.py       # persistência dos resultados + relatório HTML
+├── notebook.ipynb       # entregável: orquestra ingest->transform->quality->analysis->report
 ├── tests/
 ├── data/                # bronze cache, resultados e relatórios (fora do git)
 ├── Dockerfile
 └── docker-compose.yml   # sobe PySpark local
 ```
 
-## Modelo de dados
+## 2. O que foi entregue
+
+### Requisitos obrigatórios do case
+
+| Etapa | Descrição |
+|---|---|
+| Extração de dados | Consome `GET /pokemon` da PokeAPI com paginação, e uma requisição por pokémon para os detalhes (`types`, `stats`, `abilities`) |
+| Modelagem dos dados | 4 tabelas conforme o dicionário de dados do case: `pokemon`, `pokemon_type`, `pokemon_stats`, `pokemon_ability` |
+| Análises com Spark | As 3 perguntas do case respondidas via PySpark (ver abaixo) |
+| Entregável | `notebook.ipynb`, orquestrando extração, construção das tabelas e as 3 análises |
+
+Tabelas entregues (schema explícito via `StructType`, sem `inferSchema`):
 
 - `pokemon(pokemon_id, name, height, weight, base_experience)`
 - `pokemon_type(pokemon_id, type_name)`
 - `pokemon_stats(pokemon_id, stat_name, base_stat)`
 - `pokemon_ability(pokemon_id, ability_name, is_hidden)`
 
-## As 3 análises
+As 3 análises pedidas:
 
-1. Multi-tipo e força acima da média.
-2. Abilities exclusivas de multi-tipo.
-3. Top 5 versatilidade.
+1. Quantos pokémons têm mais de um tipo e força acima da média geral.
+2. Quais abilities não aparecem em nenhum pokémon de tipo único.
+3. Os 5 pokémons mais versáteis (`versatility_score = tipos*2 + abilities + soma_stats/100`).
 
 Fórmulas, passo a passo e a pegadinha da média em Q1 estão detalhados na
 [Seção 4 de `docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md#4-análises-srcanalysispy).
 
-## Pré-requisitos
+### Boas práticas pedidas pelo case
 
-Só Docker Desktop instalado e rodando, mais internet para uma primeira ingestão (sem
-cache bronze). Não precisa instalar Python, Java ou nenhuma biblioteca na sua máquina.
+- **Ingestão de dados a partir de API REST**, com tratamento de paginação e de dados aninhados (JSON).
+- **Modelagem relacional**: as 4 tabelas do dicionário de dados, com chaves primária/estrangeira coerentes.
+- **Manipulação e agregação de dados com Spark**: `groupBy`, `join`, `explode`, `broadcast`, `cache`.
+- **Clareza na organização e documentação do código**: módulos separados por responsabilidade (`ingest`, `transform`, `quality`, `analysis`, `report`), com testes e documentação por módulo.
 
-**Por que Docker é obrigatório aqui, não só recomendado:** este projeto depende de uma
-combinação específica de versões (PySpark 3.5.3, Java 8/11/17, matplotlib, ipykernel,
-papermill) mais uma biblioteca nativa do Hadoop para escrever Parquet. O Dockerfile fixa
-tudo isso numa imagem testada; sem ele, cada máquina precisaria reproduzir manualmente
-esse ambiente exato, e pequenas diferenças de versão já quebraram a execução real
-durante o desenvolvimento (ver `docs/IMPLEMENTATION.md`).
+### Extras entregues (além do case)
 
-**Se você rodar sem Docker (Jupyter local, célula por célula), isto vai dar problema:**
+- **Checks de qualidade de dados** (`quality.py`): not-null, unicidade e integridade referencial entre as 4 tabelas, com relatório impresso e falha explícita em invariante crítica.
+- **Cache bronze idempotente**: reexecuções reaproveitam os JSONs já baixados, sem bater de novo na PokeAPI.
+- **Relatório gerencial em HTML**, com identidade visual do PicPay e gráficos gerados a partir dos dados de cada execução.
+- **Suite de testes automatizados** (67 testes) e pipeline de CI (lint, format, testes).
+- **ADRs**: decisões de arquitetura documentadas (ver [`docs/adr/`](../docs/adr/)).
 
-- **Import falha ou "meio funciona".** Sem `pip install -e ".[dev]"` a partir desta
-  pasta, `from src import ingest, transform, quality, analysis, report` falha. Se você
-  tiver algumas dependências instaladas por acaso e outras não, o notebook roda até a
-  metade e quebra de forma confusa.
-- **Gráficos (`%matplotlib inline`) quebram com `ModuleNotFoundError: No module named
-  'matplotlib'`** se o kernel do Jupyter que você selecionou não for o mesmo ambiente
-  Python onde as dependências do projeto foram instaladas. É comum o Jupyter abrir com
-  o Python global do sistema em vez do venv do projeto.
-- **Criar a `SparkSession` falha ou trava** sem Java 8, 11 ou 17 instalado e
-  `JAVA_HOME` configurado corretamente. PySpark 3.5.3 não suporta Java 21; se o
-  `pip install` da sua máquina puxar uma versão diferente do PySpark (sem o pin do
-  `pyproject.toml`), o problema piora.
-- **Escrever Parquet (`write_silver`) falha no Windows** com
-  `UnsatisfiedLinkError: NativeIO$Windows.access0`, porque a escrita passa pelo
-  `FileOutputCommitter` do Hadoop, que exige um `hadoop.dll` nativo no `PATH`. Esse
-  arquivo não vem com o PySpark nem com o Python; é preciso baixar manualmente a versão
-  certa (Hadoop 3.3.x) de um repositório de terceiros e configurar `HADOOP_HOME`. No
-  Linux (dentro do Docker) esse problema não existe.
-- **Caminhos relativos quebram** se o Jupyter não abrir com o diretório de trabalho em
-  `part1-pokeapi-analytics/` (comum em editores que abrem a partir da raiz do repo). O
-  notebook assume que `data/bronze`, `data/silver` etc. são relativos a esta pasta.
+## 3. Como executar
 
-Nenhum desses pontos tem solução automatizada fora do Docker. Se mesmo assim quiser
-rodar localmente, precisa replicar manualmente tudo que o Dockerfile faz: instalar as
-dependências do `pyproject.toml`, instalar Java 8/11/17, registrar o kernel certo do
-Jupyter, e (no Windows) instalar o `hadoop.dll`.
+Pré-requisito único: Docker Desktop instalado e rodando, mais internet para uma primeira ingestão (sem cache bronze). Não precisa instalar Python, Java ou nenhuma biblioteca na sua máquina.
 
-## Como rodar
-
-Pipeline completo (ingest, transform, quality e as 3 análises), a partir desta pasta
-(`part1-pokeapi-analytics/`). Roda o dataset completo (~1350 pokémons) e imprime as 3
-respostas no terminal:
+Pipeline completo (ingest, transform, quality e as 3 análises), a partir desta pasta (`part1-pokeapi-analytics/`). Roda o dataset completo (~1350 pokémons) e imprime as 3 respostas no terminal:
 
 **Linux:**
 
@@ -117,20 +96,7 @@ docker compose up --build
 docker compose up --build
 ```
 
-A partir da raiz do repositório, o equivalente é `make up-p1` (ou `make analysis-p1`,
-alias do mesmo comando, nome usado no mini-spec da Parte 1).
-
-O cache bronze (`data/bronze/`, fora do git) persiste entre execuções. Um segundo
-`docker compose up` reaproveita os JSONs já baixados e roda bem mais rápido, sem bater
-na PokeAPI de novo. O `notebook.ipynb` já está commitado com as saídas de uma execução
-completa, então dá para ver as 3 respostas e os gráficos sem rodar nada.
-
-Cada execução também grava um relatório gerencial em HTML (logo, cores e fonte do
-PicPay, mais os 2 gráficos da Seção 5 do notebook, gerados na hora a partir dos dados
-desta execução, nada estático) em `data/reports/`: `report-apipokemon-latest.html`
-(sempre sobrescrito) e `report-apipokemon-{DDMMYY}-{HHMMSS}.html` (um por execução, com
-histórico). Os dados que alimentam o relatório ficam em `data/results/latest.json`,
-sobrescrito a cada run.
+A partir da raiz do repositório, o equivalente é `make up-p1` (ou `make analysis-p1`, alias do mesmo comando).
 
 Só os testes:
 
@@ -157,11 +123,9 @@ docker run --rm picpay-part1 python -m pytest tests/ -v
 
 A partir da raiz, `make test-p1`.
 
-## Status
+---
 
-Ingestão, transformação, qualidade, análises, relatório gerencial e notebook
-implementados e testados (67/67 testes passando no Docker/Linux, o ambiente oficial,
-ver [ADR-0015](../docs/adr/0015-spark-local-notebook-portavel.md)). `docker compose up`
-roda o pipeline completo de ponta a ponta, imprime as 3 respostas e gera o relatório
-HTML: o critério de pronto da Parte 1 está fechado. Detalhe completo em
-[`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md).
+Para entender o porquê de cada decisão (Docker obrigatório, gotchas de
+ambiente, detalhes do relatório HTML), ver
+[`docs/DETALHES_TECNICOS.md`](docs/DETALHES_TECNICOS.md). Para o registro de
+implementação módulo a módulo, ver [`docs/IMPLEMENTATION.md`](docs/IMPLEMENTATION.md).
