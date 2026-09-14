@@ -96,6 +96,24 @@ docker compose up --build
 docker compose up --build
 ```
 
+### O que é gerado automaticamente
+
+Esse comando não só imprime as 3 respostas: ele executa o pipeline de ponta a ponta e
+atualiza, sozinho, todos os artefatos abaixo, sem nenhum passo manual extra:
+
+| Artefato | Onde fica | O que é |
+|---|---|---|
+| `notebook.ipynb` | raiz do projeto | O próprio notebook é reexecutado célula a célula (via `papermill`) e sobrescrito com as saídas frescas dessa execução: números, tabelas e gráficos ficam commitáveis, prontos para visualizar no GitHub sem rodar nada |
+| Cache bronze | `data/bronze/*.json` (fora do git) | JSON cru de cada pokémon, salvo conforme é baixado; reaproveitado em execuções seguintes |
+| Tabelas silver | `data/silver/*.parquet` (fora do git) | As 4 tabelas do dicionário de dados (`pokemon`, `pokemon_type`, `pokemon_stats`, `pokemon_ability`), com schema explícito |
+| Resultado das análises | `data/results/latest.json` (fora do git) | As respostas das 3 perguntas, em formato estruturado, sobrescrito a cada execução |
+| Relatório gerencial | `data/reports/report-apipokemon-latest.html` e `report-apipokemon-{DDMMYY}-{HHMMSS}.html` (fora do git) | HTML com identidade visual do PicPay e os 2 gráficos, gerados na hora a partir dos dados dessa execução |
+
+O `notebook.ipynb` já commitado no repositório reflete uma execução completa anterior:
+dá para ver as 3 respostas, as tabelas e os gráficos direto no GitHub, sem precisar rodar
+nada. Detalhe de como cada artefato é gerado em
+[`docs/DETALHES_TECNICOS.md`](docs/DETALHES_TECNICOS.md#o-relatório-gerencial-em-html).
+
 Só os testes:
 
 **Linux:**
