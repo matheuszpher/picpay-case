@@ -6,19 +6,6 @@
 > serving reflete pensamento de plataforma de ML; a análise de dados reflete batch de
 > engenharia de dados.
 
-## Por que dois projetos, não uma "plataforma única"
-
-Analytics em batch (PokeAPI + Spark) e serving online de NER (spaCy) têm domínios, runtimes e
-lifecycles diferentes: não compartilham dado nem contrato. Forçá-los numa plataforma única
-seria over-engineering. Em vez disso, os dois projetos são **independentes e autossuficientes**,
-no mesmo repositório, construídos com a **mesma régua de engenharia** (CI, testes,
-observabilidade, docs, IaC). O que os unifica não é runtime, é padrão de qualidade.
-
-O discurso de "plataforma de ML" mora onde é honesto: a **Parte 2** (serving que abstrai o
-fornecedor, versiona modelo, expõe REST + MCP) já é, por si só, uma peça de tooling de plataforma.
-A **Parte 1** é engenharia de dados excelente, sem fingir ser parte de uma plataforma. Detalhe e
-tradeoffs em [ADR-0012](docs/adr/0012-sem-plataforma-unica.md).
-
 ## Estrutura do repositório
 
 ```
@@ -49,29 +36,7 @@ por dois transportes finos (REST via FastAPI e MCP), cache de predição, regist
 modelo e histórico persistido. Observabilidade com logs estruturados, `/health`, `/metrics` e
 dashboards Grafana. Ver README do projeto para como rodar.
 
-## Como rodar
-
-Cada projeto sobe sozinho via Docker Compose, sem precisar de nada além do Docker Desktop
-instalado e rodando (mesmos passos em Linux, macOS e Windows):
-
-1. Tenha o Docker Desktop instalado e rodando.
-2. Entre na pasta do projeto que quer subir:
-   ```bash
-   cd part1-pokeapi-analytics
-   ```
-   ou
-   ```bash
-   cd part2-ner-serving
-   ```
-3. Suba com Docker Compose:
-   ```bash
-   docker compose up --build
-   ```
-   Na Parte 2, use `docker compose --profile demo up --build` para incluir também o
-   playground Gradio opcional.
-
-Ver o README de cada projeto (seção "Como executar") para os comandos completos por
-sistema operacional, endpoints e comandos de teste.
+> OBS: As informações de como executar cada projeto estão nos respectivos links acima. 
 
 ## CI (GitHub Actions)
 
@@ -92,7 +57,7 @@ na aba [Actions do repositório](https://github.com/matheuszpher/picpay-case/act
 - [`docs/adr/`](docs/adr/README.md): cada decisão relevante de arquitetura, com contexto,
   alternativas consideradas e tradeoffs.
 
-## Escopo: o que fica de fora (proposital)
+## Escopo: o que ficou de fora
 
 - Treinar/fine-tunar modelo de NER próprio (usa spaCy pré-treinado).
 - Front-end/UI custom: consumo via Swagger, MCP e notebook (Gradio é opcional, só ao final).
